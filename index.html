@@ -173,6 +173,9 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .tg-poste small { display: block; color: var(--muted); font-size: .64rem; }
 .tg-poste .moi-tg { font-weight: 700; }
 .tg-libre { color: var(--muted); font-style: italic; }
+.tg-plus { display: block; margin-top: 3px; font: inherit; font-size: .72rem; font-weight: 700; color: var(--accent); background: var(--surface); border: 1px dashed var(--accent); border-radius: 999px; padding: 1px 8px; cursor: pointer; }
+.tg-plus:hover { background: var(--accent); color: var(--accent-fg); }
+.tg-plus:disabled { opacity: .5; cursor: default; }
 .lien-mode { font: inherit; font-size: .9rem; background: none; border: 0; color: var(--accent); text-decoration: underline; cursor: pointer; padding: 4px 0; justify-self: center; }
 /* Semaines */
 .semaine { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; }
@@ -796,6 +799,15 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
             if (k) b.appendChild(document.createTextNode(", "));
             b.appendChild(elt("span", g.mien ? "moi-tg" : null, nom));
           });
+          // Place libre et pas déjà inscrit sur ce créneau ce jour-là : on peut se rajouter d'un toucher
+          var dejaLa = etat.inscriptions.some(function (i) { return i.date === d && i.creneau === cr && i.mien; });
+          if (gens.length < p.places && !dejaLa && c.ouvert) {
+            var plus = elt("button", "tg-plus", "+ Moi"); plus.type = "button";
+            plus.setAttribute("aria-label", "M'inscrire " + dateLongue(d) + ", " + cr + ", " + p.nom);
+            plus.disabled = etat.occupe;
+            plus.addEventListener("click", function () { inscrire(cr, p.nom, "titulaire", d); });
+            b.appendChild(plus);
+          }
           td.appendChild(b);
         });
         tr.appendChild(td);
@@ -868,10 +880,11 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     toast("Commence par remplir ta fiche éco-délégué.", true);
     $("prenom").focus(); return false;
   }
-  function inscrire(creneau, poste, role) {
+  function inscrire(creneau, poste, role, dateChoisie) {
     if (!exiger() || etat.occupe) return;
+    var laDate = dateChoisie || etat.date, repeter = dateChoisie ? false : etat.repeter;
     etat.occupe = true; rendre();
-    var d = { date: etat.date, creneau: creneau, poste: poste, role: role, repeter: etat.repeter, jusqua: finDuMois(etat.date),
+    var d = { date: laDate, creneau: creneau, poste: poste, role: role, repeter: repeter, jusqua: finDuMois(laDate),
               prenom: etat.moi.prenom, initiale: etat.moi.initiale, classe: etat.moi.classe, code: etat.moi.code };
     appel("inscrire", d).then(function (r) {
       appliquer(r); etat.occupe = false; etat.repeter = false; $("repeter").checked = false; rendre();
