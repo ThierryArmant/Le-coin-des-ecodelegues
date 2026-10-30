@@ -143,7 +143,7 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
             </select>
           </label>
         </div>
-        <div class="legende"><span><i class="dot" style="--c:var(--bad)"></i>Place de titulaire vide</span><span><i class="dot" style="--c:var(--warn)"></i>Titulaires au complet, mais aucun remplaçant</span></div>
+        
         <div class="manques" id="manques"></div>
       </section>
 
@@ -240,10 +240,10 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
       k.appendChild(e);
     }
     var coul = function (p) { return p >= 100 ? "var(--ok)" : p >= 60 ? "var(--warn)" : "var(--bad)"; };
-    kpi(s0 ? "Semaine du " + jourMois(s0.dates[0]) : "Prochaine semaine", r0.pct + " %", r0.pris + " / " + r0.places + " places de titulaire", r0.pct, coul(r0.pct));
-    kpi(s1 ? "Semaine du " + jourMois(s1.dates[0]) : "Semaine suivante", r1.pct + " %", r1.pris + " / " + r1.places + " places de titulaire", r1.pct, coul(r1.pct));
+    kpi(s0 ? "Semaine du " + jourMois(s0.dates[0]) : "Prochaine semaine", r0.pct + " %", r0.pris + " / " + r0.places + " places", r0.pct, coul(r0.pct));
+    kpi(s1 ? "Semaine du " + jourMois(s1.dates[0]) : "Semaine suivante", r1.pct + " %", r1.pris + " / " + r1.places + " places", r1.pct, coul(r1.pct));
     kpi("Élèves engagés", String(Object.keys(eleves).length), avenir.length + " services à venir");
-    kpi("Places vides", String(vides), "titulaires, sur les 14 prochains jours", null);
+    kpi("Places vides", String(vides), "sur les 14 prochains jours", null);
 
     rendreManques();
     rendreSemaine();
@@ -262,7 +262,7 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
           var tit = ici.filter(function (i) { return i.poste === p.nom && i.role !== "remplacant"; }).length;
           var rem = ici.filter(function (i) { return i.poste === p.nom && i.role === "remplacant"; }).length;
           if (tit < p.places) { manques.push({ p: p.nom, txt: (p.places - tit) + " à pourvoir", grave: true }); grave = true; }
-          else if (c.remplacants > 0 && rem === 0) manques.push({ p: p.nom, txt: "sans remplaçant", grave: false });
+
         });
         if (manques.length) lignes.push({ cr: cr, manques: manques, grave: grave });
       });
@@ -284,7 +284,7 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
       bloc.appendChild(ul); zone.appendChild(bloc);
     });
     if (!dates.length) zone.appendChild(elt("p", "vide", "Aucune date de cantine sur cette période."));
-    else if (!total) zone.appendChild(elt("p", "bravo-ok", "Tout est pourvu sur cette période, remplaçants compris."));
+    else if (!total) zone.appendChild(elt("p", "bravo-ok", "Tout est pourvu sur cette période."));
   }
 
   function rendreSemaine() {
@@ -329,13 +329,13 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
     });
     var liste = Object.keys(par).map(function (k) { return par[k]; }).sort(function (a, b) { return (b.tit + b.rem) - (a.tit + a.rem) || a.classe.localeCompare(b.classe); });
     if (!liste.length) { t.appendChild(elt("caption", "vide", "Aucun élève inscrit pour l'instant.")); return; }
-    var h = elt("tr"); ["Élève", "Classe", "Code", "Titulaire", "Remplaçant", "Prochain service", "Postes"].forEach(function (x) { h.appendChild(elt("th", null, x)); });
+    var h = elt("tr"); ["Élève", "Classe", "Code", "Services", "Prochain service", "Postes"].forEach(function (x) { h.appendChild(elt("th", null, x)); });
     var th = elt("thead"); th.appendChild(h); t.appendChild(th);
     var tb = elt("tbody");
     liste.forEach(function (o) {
       var tr = elt("tr");
       tr.appendChild(elt("td", null, o.nom)); tr.appendChild(elt("td", null, o.classe)); tr.appendChild(elt("td", "n code", o.code || "ancien"));
-      tr.appendChild(elt("td", "n", String(o.tit))); tr.appendChild(elt("td", "n", String(o.rem)));
+      tr.appendChild(elt("td", "n", String(o.tit + o.rem)));
       tr.appendChild(elt("td", null, jourCourt(o.prochain))); tr.appendChild(elt("td", null, Object.keys(o.postes).join(", ")));
       tb.appendChild(tr);
     });

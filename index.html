@@ -652,7 +652,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
         nom.appendChild(elt("span", null, titulaires.length + "/" + p.places));
         corps.appendChild(nom);
         corps.appendChild(rangee(titulaires, p.places, cr, p.nom, "titulaire", dejaLa, moi));
-        if (c.remplacants > 0) {
+        if (false) { // remplaçants retirés : 2 titulaires par poste suffisent
           var sous = elt("div", "doublure");
           sous.appendChild(elt("span", "doublure-titre", "Remplaçants"));
           sous.appendChild(rangee(doublures, c.remplacants, cr, p.nom, "remplacant", dejaLa, moi));
@@ -678,7 +678,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
         pill.appendChild(elt("span", "x", "×"));
         pill.addEventListener("click", function () { retirer(g); });
       } else {
-        pill.textContent = "Pris";
+        pill.textContent = "Déjà pris";
       }
       places.appendChild(pill);
     });
