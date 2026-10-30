@@ -113,6 +113,19 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .chargement { color: var(--muted); }
 .lien-affiche { color: var(--accent); font-weight: 700; font-size: .9rem; }
 
+
+/* Semaines */
+.semaine { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; }
+.semaine b { text-align: center; font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
+.sem-btn { font: inherit; font-size: 1.4rem; line-height: 1; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+.sem-btn:disabled { opacity: .35; cursor: default; }
+.repeter { flex-direction: row; align-items: center; gap: 10px; font-size: .92rem; color: var(--fg); font-weight: 400; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.repeter input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+/* Remplaçants */
+.doublure { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; border-top: 1px dashed var(--line); }
+.doublure-titre { font-family: var(--font-data); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.places-doublure .place { font-size: .82rem; padding: 3px 10px; }
+.mes .retirer { font: inherit; font-size: .8rem; background: none; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; color: var(--danger); cursor: pointer; margin-left: auto; }
 /* Jauge de la semaine */
 .jauge { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
 .jauge-haut { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
@@ -157,7 +170,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 
   <div class="banner" id="banniere" hidden></div>
 
-  <section class="jauge" aria-label="Remplissage de la semaine">
+  <section class="jauge" aria-label="Remplissage de la semaine affichée">
     <div class="jauge-haut"><b id="jauge-titre">La brigade se forme</b><span id="jauge-chiffres"></span></div>
     <div class="barre" id="barre"></div>
   </section>
@@ -180,7 +193,15 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 
   <div class="legend" id="legende"></div>
 
+  <div class="semaine">
+    <button class="sem-btn" id="sem-prec" type="button" aria-label="Semaine précédente">‹</button>
+    <b id="sem-titre">Semaine</b>
+    <button class="sem-btn" id="sem-suiv" type="button" aria-label="Semaine suivante">›</button>
+  </div>
+
   <nav class="jours" id="jours" role="tablist" aria-label="Jours de cantine"></nav>
+
+  <label class="repeter"><input type="checkbox" id="repeter"><span id="repeter-libelle">Chaque semaine jusqu'en juin</span></label>
 
   <section class="creneaux" id="creneaux" aria-live="polite"><p class="chargement">Chargement du planning…</p></section>
 
@@ -211,59 +232,89 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   function lireReponse(r) {
     return r.json().then(function (d) { if (d && d.erreur) throw new Error(d.erreur); return d; });
   }
-  function appel(nom) {
-    var args = Array.prototype.slice.call(arguments, 1);
-    if (!gas) return demo[nom].apply(null, args);
-    if (nom === "getData" && !args[0]) return fetch(ADRESSE_PLANNING + "?action=getData", { cache: "no-store" }).then(lireReponse);
-    if (nom === "getData") return fetch(ADRESSE_PLANNING, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(Object.assign({ action: "getData" }, args[0])) }).then(lireReponse);
-    var corps = nom === "inscrire" ? Object.assign({ action: "inscrire" }, args[0])
-                                   : Object.assign({ action: "retirer", id: args[0] }, args[1]);
+  function poster(corps) {
     return fetch(ADRESSE_PLANNING, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(corps) }).then(lireReponse);
   }
+  function appel(nom, a, b) {
+    if (!gas) return demo[nom](a, b);
+    if (nom === "getData" && !a) return fetch(ADRESSE_PLANNING + "?action=getData").then(lireReponse);
+    if (nom === "getData") return poster(Object.assign({ action: "getData" }, a));
+    if (nom === "inscrire") return poster(Object.assign({ action: "inscrire" }, a));
+    return poster(Object.assign({ action: "retirer", id: a }, b));
+  }
 
+  /* ---- Dates ---- */
+  var NOMS_JOURS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+  var MOIS = ["janv.", "févr.", "mars", "avril", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+  function enDate(iso) { var p = iso.split("-").map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2])); }
+  function enIso(d) { return d.toISOString().slice(0, 10); }
+  function jourDe(iso) { return enDate(iso).getUTCDay(); }
+  function jourMois(iso) { var d = enDate(iso); return d.getUTCDate() + " " + MOIS[d.getUTCMonth()]; }
+  function dateLongue(iso) { return NOMS_JOURS[jourDe(iso)].toLowerCase() + " " + jourMois(iso); }
+  function lundiDe(iso) { var d = enDate(iso); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return enIso(d); }
+  function isoLocal() { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+  function datesOuvertes(c) {
+    var jours = c.jours.map(function (j) { return NOMS_JOURS.indexOf(j); }).filter(function (n) { return n >= 0; });
+    var sortie = []; if (!c.debut || !c.fin) return sortie;
+    var d = enDate(c.debut);
+    for (var k = 0; k < 400; k++) {
+      var iso = enIso(d); if (iso > c.fin) break;
+      var ferme = c.fermetures.some(function (f) { return iso >= f[0] && iso <= f[1]; });
+      if (!ferme && jours.indexOf(d.getUTCDay()) >= 0) sortie.push(iso);
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+    return sortie;
+  }
+
+  /* ---- Démonstration (sans serveur) ---- */
   var demo = (function () {
     var config = {
       titre: "Brigade cantine Giono",
       jours: ["Lundi", "Mardi", "Jeudi", "Vendredi"],
       creneaux: ["11h30-12h00", "12h00-12h30", "12h30-13h00", "13h00-13h30"],
       postes: [{ nom: "Scan plateau", places: 2 }, { nom: "Pain et fruits", places: 2 }, { nom: "Biodéchets et emballages", places: 2 }],
-      ouvert: true
+      remplacants: 2, ouvert: true, debut: "2026-11-02", fin: "2027-06-30",
+      fermetures: [["2026-12-19", "2027-01-03"], ["2027-02-20", "2027-03-07"], ["2027-03-29", "2027-03-29"], ["2027-04-17", "2027-05-02"], ["2027-05-06", "2027-05-07"], ["2027-05-17", "2027-05-17"]]
     };
-    var n = 0;
-    var liste = [
-      ["Lundi", "11h30-12h00", "Scan plateau", "Exemple", "A", "4E2"],
-      ["Lundi", "12h00-12h30", "Pain et fruits", "Exemple", "B", "5E1"],
-      ["Lundi", "12h00-12h30", "Biodéchets et emballages", "Exemple", "C", "3E4"],
-      ["Mardi", "12h30-13h00", "Scan plateau", "Exemple", "D", "4E1"]
-    ].map(function (l) { return { id: "d" + (n++), jour: l[0], creneau: l[1], poste: l[2], prenom: l[3], initiale: l[4], classe: l[5], code: "0000" }; });
+    var n = 0, liste = [];
+    var ouvertes = datesOuvertes(config).filter(function (d) { return d >= isoLocal(); });
+    [[0, "11h30-12h00", "Scan plateau", "titulaire"], [0, "12h00-12h30", "Pain et fruits", "titulaire"], [1, "12h30-13h00", "Biodéchets et emballages", "titulaire"], [1, "12h30-13h00", "Biodéchets et emballages", "remplacant"], [2, "11h30-12h00", "Scan plateau", "titulaire"]]
+      .forEach(function (l, k) { if (ouvertes[l[0]]) liste.push({ id: "d" + (n++), date: ouvertes[l[0]], creneau: l[1], poste: l[2], role: l[3], prenom: "Exemple", initiale: "ABCDE".charAt(k), classe: "4E1", code: "0000" }); });
     function donnees(ident) {
       var k = ident && ident.prenom ? cle(ident) : null;
       var refuse = !!k && liste.some(function (i) { return cle(i) === k && i.code !== ident.code; });
-      return { config: config, codeRefuse: refuse, inscriptions: liste.map(function (i) {
+      return { config: config, aujourdhui: isoLocal(), codeRefuse: refuse, inscriptions: liste.map(function (i) {
         var mien = !!k && !refuse && cle(i) === k;
-        return mien ? { id: i.id, jour: i.jour, creneau: i.creneau, poste: i.poste, mien: true } : { jour: i.jour, creneau: i.creneau, poste: i.poste, mien: false };
+        var o = { date: i.date, creneau: i.creneau, poste: i.poste, role: i.role, mien: mien }; if (mien) o.id = i.id; return o;
       }) };
     }
     return {
       getData: function (ident) { return Promise.resolve(donnees(ident)); },
       inscrire: function (d) {
-        if (liste.some(function (i) { return i.jour === d.jour && i.creneau === d.creneau && cle(i) === cle(d); }))
-          return Promise.reject(new Error("Tu es déjà inscrit(e) sur ce créneau."));
-        liste.push({ id: "d" + (n++), jour: d.jour, creneau: d.creneau, poste: d.poste, prenom: cap(d.prenom.trim()), initiale: d.initiale.toUpperCase(), classe: d.classe.toUpperCase().replace(/\s+/g, ""), code: d.code });
-        return Promise.resolve(donnees(d));
+        var p = config.postes.filter(function (x) { return x.nom === d.poste; })[0];
+        var cap = d.role === "remplacant" ? config.remplacants : p.places;
+        var cibles = d.repeter ? ouvertes.filter(function (x) { return x >= d.date && jourDe(x) === jourDe(d.date); }) : [d.date];
+        var ajoutees = [], sautees = [];
+        cibles.forEach(function (x) {
+          var ici = liste.filter(function (i) { return i.date === x && i.creneau === d.creneau; });
+          if (ici.some(function (i) { return cle(i) === cle(d); }) || ici.filter(function (i) { return i.poste === d.poste && i.role === d.role; }).length >= cap) { sautees.push(x); return; }
+          liste.push({ id: "d" + (n++), date: x, creneau: d.creneau, poste: d.poste, role: d.role, prenom: d.prenom, initiale: d.initiale, classe: d.classe, code: d.code });
+          ajoutees.push(x);
+        });
+        if (!ajoutees.length) return Promise.reject(new Error("Place indisponible : le poste est complet ou tu as déjà un poste sur ce créneau."));
+        var r = donnees(d); r.ajoutees = ajoutees; r.sautees = sautees; return Promise.resolve(r);
       },
       retirer: function (id, ident) {
         var i = liste.findIndex(function (x) { return x.id === id; });
         if (i < 0) return Promise.reject(new Error("Cette inscription n'existe plus."));
         if (liste[i].code !== ident.code || cle(liste[i]) !== cle(ident)) return Promise.reject(new Error("Code incorrect : seule la personne inscrite peut se retirer."));
-        liste.splice(i, 1);
-        return Promise.resolve(donnees(ident));
+        liste.splice(i, 1); return Promise.resolve(donnees(ident));
       }
     };
   })();
 
   /* ---- État ---- */
-  var etat = { config: null, inscriptions: [], jour: null, moi: null, occupe: false };
+  var etat = { config: null, aujourdhui: isoLocal(), inscriptions: [], semaines: [], semaine: 0, date: null, moi: null, occupe: false, repeter: false };
   var $ = function (id) { return document.getElementById(id); };
 
   function norm(s) { return String(s || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, ""); }
@@ -277,15 +328,14 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   var minuteur;
   function toast(msg, erreur) {
     var t = $("toast"); t.textContent = msg; t.className = "toast" + (erreur ? " erreur" : ""); t.hidden = false;
-    clearTimeout(minuteur); minuteur = setTimeout(function () { t.hidden = true; }, 3200);
+    clearTimeout(minuteur); minuteur = setTimeout(function () { t.hidden = true; }, 3600);
   }
   function messageErreur(e) { return (e && e.message ? e.message : String(e)).replace(/^Error:\s*/, "").replace(/^Exception:\s*/, ""); }
 
   /* ---- Identité ---- */
   function afficherMoi() {
     var m = etat.moi;
-    $("form-moi").hidden = !!m; $("aide-moi").hidden = !!m; $("resume").hidden = !m;
-    $("moi-titre").hidden = !!m;
+    $("form-moi").hidden = !!m; $("aide-moi").hidden = !!m; $("resume").hidden = !m; $("moi-titre").hidden = !!m;
     if (m) $("resume-nom").textContent = cap(m.prenom) + " " + m.initiale.toUpperCase() + ". · " + m.classe.toUpperCase();
   }
   $("form-moi").addEventListener("submit", function (ev) {
@@ -303,37 +353,50 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     $("prenom").value = m.prenom || ""; $("initiale").value = m.initiale || ""; $("classe").value = m.classe || ""; $("code").value = "";
     etat.moi = null; ecrireMoi(null); afficherMoi(); charger(); $("prenom").focus();
   });
+  $("repeter").addEventListener("change", function () { etat.repeter = this.checked; });
 
+  /* ---- Grades et icônes ---- */
   var ICONES = [
     '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M4 12h16"/></svg>',
     '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19 19 5c1.5 1.5 1.5 4 0 5.5L10.5 19c-1.5 1.5-4 1.5-5.5 0z"/><path d="m9 13 2 2M12 10l2 2M15 7l2 2"/></svg>',
     '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20c0-9 6-15 15-15 0 9-6 15-15 15z"/><path d="M5 20 13 12"/></svg>'
   ];
   var RANGS = [
-    { min: 1, nom: "Recrue de la brigade", suite: "Encore 2 créneaux pour devenir Pilier du self." },
-    { min: 3, nom: "Pilier du self", suite: "Encore 2 créneaux pour devenir Chef de brigade." },
-    { min: 5, nom: "Chef de brigade", suite: "Le self tourne grâce à toi." }
+    { min: 1, nom: "Recrue de la brigade", suite: "Encore quelques services pour devenir Pilier du self." },
+    { min: 5, nom: "Pilier du self", suite: "Continue : à 15 services, tu deviens Chef de brigade." },
+    { min: 15, nom: "Chef de brigade", suite: "Le self tourne grâce à toi." }
   ];
   function rang(n) { var r = null; RANGS.forEach(function (x) { if (n >= x.min) r = x; }); return r; }
+  function couleurPoste(nom) {
+    var i = etat.config.postes.findIndex(function (p) { return p.nom === nom; });
+    return COULEURS[Math.max(0, i) % COULEURS.length];
+  }
   function iconePoste(nom) {
     var i = Math.max(0, etat.config.postes.findIndex(function (p) { return p.nom === nom; }));
-    var span = elt("span"); span.innerHTML = ICONES[i % ICONES.length]; span.firstChild.style.setProperty("--c", couleurPoste(nom)); return span.firstChild;
+    var s = elt("span"); s.innerHTML = ICONES[i % ICONES.length]; s.firstChild.style.setProperty("--c", couleurPoste(nom)); return s.firstChild;
+  }
+  function mesAVenir() {
+    return etat.inscriptions.filter(function (i) { return i.mien && i.date >= etat.aujourdhui; })
+      .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : etat.config.creneaux.indexOf(a.creneau) - etat.config.creneaux.indexOf(b.creneau); });
   }
 
-  function bravo(creneau, poste) {
-    var miens = etat.inscriptions.filter(function (i) { return i.mien; }).length;
-    var r = rang(miens);
-    var nouveauRang = RANGS.some(function (x) { return x.min === miens; });
-    $("bravo-titre").textContent = nouveauRang ? r.nom + " !" : "Merci " + cap(etat.moi.prenom) + " !";
-    $("bravo-texte").textContent = "Tu es attendu(e) " + etat.jour.toLowerCase() + " " + creneau.replace("-", " – ") + " au poste " + poste.toLowerCase() + ". " + (r ? r.suite : "");
+  function bravo(creneau, poste, role, ajoutees, sautees) {
+    var total = mesAVenir().length, avant = total - ajoutees.length;
+    var r = rang(total);
+    var monte = RANGS.some(function (x) { return x.min > avant && x.min <= total; });
+    $("bravo-titre").textContent = monte ? r.nom + " !" : "Merci " + cap(etat.moi.prenom) + " !";
+    var quoi = (role === "remplacant" ? "remplaçant(e) au poste " : "au poste ") + poste.toLowerCase();
+    var texte = ajoutees.length > 1
+      ? "Tu es inscrit(e) " + quoi + ", " + creneau.replace("-", " – ") + ", " + ajoutees.length + " " + NOMS_JOURS[jourDe(ajoutees[0])].toLowerCase() + "s jusqu'au " + jourMois(ajoutees[ajoutees.length - 1]) + "."
+      : "Tu es attendu(e) " + dateLongue(ajoutees[0]) + ", " + creneau.replace("-", " – ") + ", " + quoi + ".";
+    if (sautees.length) texte += " " + sautees.length + " semaine" + (sautees.length > 1 ? "s étaient déjà complètes" : " était déjà complète") + ".";
+    $("bravo-texte").textContent = texte + (r ? " " + r.suite : "");
     var carte = document.querySelector(".bravo-carte");
     carte.querySelectorAll(".confetti").forEach(function (c) { c.remove(); });
     var couleurs = ["var(--poste1)", "var(--poste2)", "var(--poste3)", "var(--accent)"];
     for (var k = 0; k < 24; k++) {
       var c = elt("i", "confetti");
-      c.style.left = (4 + Math.random() * 92) + "%";
-      c.style.setProperty("--c", couleurs[k % 4]);
-      c.style.animationDelay = (Math.random() * .4) + "s";
+      c.style.left = (4 + Math.random() * 92) + "%"; c.style.setProperty("--c", couleurs[k % 4]); c.style.animationDelay = (Math.random() * .4) + "s";
       carte.appendChild(c);
     }
     $("bravo").hidden = false; $("bravo-ok").focus();
@@ -342,12 +405,24 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   $("bravo").addEventListener("click", function (e) { if (e.target === this) this.hidden = true; });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") $("bravo").hidden = true; });
 
-  /* ---- Rendu ---- */
-  function couleurPoste(nom) {
-    var i = etat.config.postes.findIndex(function (p) { return p.nom === nom; });
-    return COULEURS[Math.max(0, i) % COULEURS.length];
+  /* ---- Semaines ---- */
+  function construireSemaines() {
+    var dates = datesOuvertes(etat.config).filter(function (d) { return d >= etat.aujourdhui; });
+    var semaines = [], parLundi = {};
+    dates.forEach(function (d) {
+      var l = lundiDe(d);
+      if (!parLundi[l]) { parLundi[l] = { lundi: l, dates: [] }; semaines.push(parLundi[l]); }
+      parLundi[l].dates.push(d);
+    });
+    etat.semaines = semaines;
+    if (etat.semaine >= semaines.length) etat.semaine = Math.max(0, semaines.length - 1);
+    var s = semaines[etat.semaine];
+    if (s && s.dates.indexOf(etat.date) < 0) etat.date = s.dates[0];
   }
+  $("sem-prec").addEventListener("click", function () { if (etat.semaine > 0) { etat.semaine--; etat.date = null; construireSemaines(); rendre(); } });
+  $("sem-suiv").addEventListener("click", function () { if (etat.semaine < etat.semaines.length - 1) { etat.semaine++; etat.date = null; construireSemaines(); rendre(); } });
 
+  /* ---- Rendu ---- */
   function rendre() {
     var c = etat.config; if (!c) return;
     $("titre").textContent = c.titre;
@@ -356,117 +431,137 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     else if (!c.ouvert) { ban.hidden = false; ban.textContent = "Les inscriptions sont fermées pour le moment. Tu peux consulter le planning."; }
     else ban.hidden = true;
 
+    var sem = etat.semaines[etat.semaine];
+    if (!sem) { $("creneaux").textContent = "Aucune date ouverte pour le moment."; return; }
+    var parCase = c.postes.reduce(function (a, p) { return a + p.places; }, 0);
+
     // Légende
     var lg = $("legende"); lg.textContent = "";
     c.postes.forEach(function (p) { var s = elt("span"); s.appendChild(iconePoste(p.nom)); s.appendChild(document.createTextNode(p.nom)); lg.appendChild(s); });
 
+    // Navigation de semaine
+    var d0 = sem.dates[0], d1 = sem.dates[sem.dates.length - 1];
+    $("sem-titre").textContent = "Semaine du " + jourMois(d0) + " au " + jourMois(d1);
+    $("sem-prec").disabled = etat.semaine === 0;
+    $("sem-suiv").disabled = etat.semaine >= etat.semaines.length - 1;
 
-    // Jauge de la semaine
-    var totalPlaces = c.postes.reduce(function (a, p) { return a + p.places; }, 0) * c.creneaux.length * c.jours.length;
-    var pris = etat.inscriptions.length;
-    var pct = totalPlaces ? Math.round(pris / totalPlaces * 100) : 0;
-    $("jauge-titre").textContent = pct >= 100 ? "La brigade est au complet" : pct >= 50 ? "La brigade prend forme" : "La brigade recrute";
-    $("jauge-chiffres").textContent = pris + " / " + totalPlaces + " places · " + pct + " %";
+    // Jauge de la semaine (titulaires)
+    var totalSem = parCase * c.creneaux.length * sem.dates.length;
+    var dela = etat.inscriptions.filter(function (i) { return sem.dates.indexOf(i.date) >= 0 && i.role !== "remplacant"; });
+    var pct = totalSem ? Math.round(dela.length / totalSem * 100) : 0;
+    $("jauge-titre").textContent = pct >= 100 ? "Brigade au complet cette semaine" : pct >= 50 ? "La brigade prend forme" : "La brigade recrute";
+    $("jauge-chiffres").textContent = dela.length + " / " + totalSem + " places · " + pct + " %";
     var barre = $("barre"); barre.textContent = "";
     c.postes.forEach(function (p) {
-      var n = etat.inscriptions.filter(function (i) { return i.poste === p.nom; }).length;
-      var seg = elt("i"); seg.style.setProperty("--c", couleurPoste(p.nom)); seg.style.width = (totalPlaces ? n / totalPlaces * 100 : 0) + "%"; seg.title = p.nom + " : " + n;
+      var n = dela.filter(function (i) { return i.poste === p.nom; }).length;
+      var seg = elt("i"); seg.style.setProperty("--c", couleurPoste(p.nom)); seg.style.width = (totalSem ? n / totalSem * 100 : 0) + "%"; seg.title = p.nom + " : " + n;
       barre.appendChild(seg);
     });
 
     // Onglets jours
-    var parCase = c.postes.reduce(function (a, p) { return a + p.places; }, 0);
-    var nav = $("jours"); nav.textContent = ""; nav.style.setProperty("--n", c.jours.length);
-    if (c.jours.indexOf(etat.jour) < 0) etat.jour = jourParDefaut(c.jours);
-    c.jours.forEach(function (j) {
-      var nb = etat.inscriptions.filter(function (i) { return i.jour === j; }).length;
+    var nav = $("jours"); nav.textContent = ""; nav.style.setProperty("--n", sem.dates.length);
+    sem.dates.forEach(function (d) {
+      var nb = etat.inscriptions.filter(function (i) { return i.date === d && i.role !== "remplacant"; }).length;
       var b = elt("button", "jour"); b.type = "button"; b.setAttribute("role", "tab");
-      b.setAttribute("aria-selected", j === etat.jour ? "true" : "false");
-      b.appendChild(elt("b", null, j)); b.appendChild(elt("small", null, nb + "/" + parCase * c.creneaux.length));
-      b.addEventListener("click", function () { etat.jour = j; rendre(); });
+      b.setAttribute("aria-selected", d === etat.date ? "true" : "false");
+      b.appendChild(elt("b", null, NOMS_JOURS[jourDe(d)].slice(0, 3) + ". " + enDate(d).getUTCDate()));
+      b.appendChild(elt("small", null, nb + "/" + parCase * c.creneaux.length));
+      b.addEventListener("click", function () { etat.date = d; rendre(); });
       nav.appendChild(b);
     });
+    $("repeter-libelle").textContent = "Chaque " + NOMS_JOURS[jourDe(etat.date)].toLowerCase() + " jusqu'au " + jourMois(c.fin) + " (même créneau, même poste)";
 
     // Créneaux du jour
     var moi = etat.moi;
     var zone = $("creneaux"); zone.textContent = "";
     c.creneaux.forEach(function (cr) {
-      var ici = etat.inscriptions.filter(function (i) { return i.jour === etat.jour && i.creneau === cr; });
+      var ici = etat.inscriptions.filter(function (i) { return i.date === etat.date && i.creneau === cr; });
       var dejaLa = ici.some(function (i) { return i.mien; });
+      var tit = ici.filter(function (i) { return i.role !== "remplacant"; }).length;
       var bloc = elt("article", "creneau");
       var tete = elt("div", "creneau-tete");
       tete.appendChild(elt("span", "heure", cr.replace("-", " – ")));
-      tete.appendChild(elt("span", "taux", ici.length + "/" + parCase + " places prises"));
+      tete.appendChild(elt("span", "taux", tit + "/" + parCase + " places prises"));
       bloc.appendChild(tete);
       c.postes.forEach(function (p) {
         var ligne = elt("div", "poste");
         var bande = elt("div", "poste-bande"); bande.style.setProperty("--c", couleurPoste(p.nom)); ligne.appendChild(bande);
         var corps = elt("div", "poste-corps");
-        var gens = ici.filter(function (i) { return i.poste === p.nom; });
-        var nom = elt("div", "poste-nom"); var gauche = elt("div"); gauche.appendChild(iconePoste(p.nom)); gauche.appendChild(document.createTextNode(p.nom)); nom.appendChild(gauche); nom.appendChild(elt("span", null, gens.length + "/" + p.places));
+        var titulaires = ici.filter(function (i) { return i.poste === p.nom && i.role !== "remplacant"; });
+        var doublures = ici.filter(function (i) { return i.poste === p.nom && i.role === "remplacant"; });
+        var nom = elt("div", "poste-nom"); var gauche = elt("div"); gauche.appendChild(iconePoste(p.nom)); gauche.appendChild(document.createTextNode(p.nom)); nom.appendChild(gauche);
+        nom.appendChild(elt("span", null, titulaires.length + "/" + p.places));
         corps.appendChild(nom);
-        var places = elt("div", "places");
-        gens.forEach(function (g) {
-          var mien = !!moi && g.mien;
-          var pill = elt(mien ? "button" : "span", "place" + (mien ? " moi-meme" : ""));
-          if (mien) {
-            pill.appendChild(document.createTextNode(cap(moi.prenom) + " " + moi.initiale.toUpperCase() + "."));
-            pill.appendChild(elt("span", "classe", moi.classe.toUpperCase()));
-          } else {
-            pill.appendChild(document.createTextNode("Pris"));
-          }
-          if (mien) {
-            pill.type = "button"; pill.setAttribute("aria-label", "Me retirer de ce poste");
-            pill.appendChild(elt("span", "x", "×"));
-            pill.addEventListener("click", function () { retirer(g); });
-          }
-          places.appendChild(pill);
-        });
-        for (var k = gens.length; k < p.places; k++) {
-          var libre = elt("button", "place libre", "+ Je prends");
-          libre.type = "button";
-          libre.disabled = !c.ouvert || etat.occupe || !!dejaLa;
-          if (dejaLa) libre.title = "Tu as déjà un poste sur ce créneau";
-          libre.addEventListener("click", (function (poste) { return function () { inscrire(cr, poste); }; })(p.nom));
-          places.appendChild(libre);
+        corps.appendChild(rangee(titulaires, p.places, cr, p.nom, "titulaire", dejaLa, moi));
+        if (c.remplacants > 0) {
+          var sous = elt("div", "doublure");
+          sous.appendChild(elt("span", "doublure-titre", "Remplaçants"));
+          sous.appendChild(rangee(doublures, c.remplacants, cr, p.nom, "remplacant", dejaLa, moi));
+          corps.appendChild(sous);
         }
-        corps.appendChild(places);
         ligne.appendChild(corps);
         bloc.appendChild(ligne);
       });
       zone.appendChild(bloc);
     });
 
-    // Mes créneaux
+    rendreMes();
+  }
+
+  function rangee(gens, capacite, cr, poste, role, dejaLa, moi) {
+    var places = elt("div", "places" + (role === "remplacant" ? " places-doublure" : ""));
+    gens.forEach(function (g) {
+      var pill = elt(g.mien ? "button" : "span", "place" + (g.mien ? " moi-meme" : ""));
+      if (g.mien) {
+        pill.type = "button"; pill.setAttribute("aria-label", "Me retirer de ce poste");
+        pill.appendChild(document.createTextNode(cap(moi.prenom) + " " + moi.initiale.toUpperCase() + "."));
+        pill.appendChild(elt("span", "classe", moi.classe.toUpperCase()));
+        pill.appendChild(elt("span", "x", "×"));
+        pill.addEventListener("click", function () { retirer(g); });
+      } else {
+        pill.textContent = "Pris";
+      }
+      places.appendChild(pill);
+    });
+    for (var k = gens.length; k < capacite; k++) {
+      var libre = elt("button", "place libre", role === "remplacant" ? "+ Je double" : "+ Je prends");
+      libre.type = "button";
+      libre.disabled = !etat.config.ouvert || etat.occupe || dejaLa;
+      if (dejaLa) libre.title = "Tu as déjà un poste sur ce créneau";
+      libre.addEventListener("click", function () { inscrire(cr, poste, role); });
+      places.appendChild(libre);
+    }
+    return places;
+  }
+
+  function rendreMes() {
     var mes = $("mes"); mes.textContent = "";
     if (!etat.moi) { mes.appendChild(elt("p", "vide", "Remplis « Qui es-tu ? » pour voir tes créneaux ici.")); return; }
-    var miens = etat.inscriptions.filter(function (i) { return i.mien; })
-      .sort(function (a, b) { return (c.jours.indexOf(a.jour) - c.jours.indexOf(b.jour)) || (c.creneaux.indexOf(a.creneau) - c.creneaux.indexOf(b.creneau)); });
+    var miens = mesAVenir();
     if (!miens.length) { mes.appendChild(elt("p", "vide", "Aucun créneau pour l'instant. Touche « + Je prends » sur une place libre.")); return; }
     var r = rang(miens.length);
     if (r) {
       var b = elt("div", "badge");
       b.appendChild(elt("span", "badge-rond", String(miens.length)));
       b.appendChild(elt("span", null, r.nom));
-      b.appendChild(elt("small", null, miens.length > 1 ? "services par semaine" : "service par semaine"));
+      b.appendChild(elt("small", null, miens.length > 1 ? "services à venir" : "service à venir"));
       mes.appendChild(b);
     }
     var ul = elt("ul");
-    miens.forEach(function (i) {
+    var max = 8;
+    miens.slice(0, max).forEach(function (i) {
       var li = elt("li");
       var d = elt("i", "dot"); d.style.setProperty("--c", couleurPoste(i.poste)); li.appendChild(d);
-      li.appendChild(elt("strong", null, i.jour));
+      li.appendChild(elt("strong", null, cap(dateLongue(i.date))));
       li.appendChild(elt("span", "heure", i.creneau.replace("-", " – ")));
-      li.appendChild(elt("span", null, i.poste));
+      li.appendChild(elt("span", null, i.poste + (i.role === "remplacant" ? " (remplaçant)" : "")));
+      var x = elt("button", "retirer", "Retirer"); x.type = "button";
+      x.addEventListener("click", function () { retirer(i); });
+      li.appendChild(x);
       ul.appendChild(li);
     });
     mes.appendChild(ul);
-  }
-
-  function jourParDefaut(jours) {
-    var noms = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
-    var aujourdhui = noms[new Date().getDay()];
-    return jours.indexOf(aujourdhui) >= 0 ? aujourdhui : jours[0];
+    if (miens.length > max) mes.appendChild(elt("p", "vide", "Et " + (miens.length - max) + " autres services jusqu'au " + jourMois(miens[miens.length - 1].date) + "."));
   }
 
   /* ---- Actions ---- */
@@ -475,38 +570,43 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     toast("Commence par « Qui es-tu ? ».", true);
     $("prenom").focus(); return false;
   }
-  function inscrire(creneau, poste) {
+  function inscrire(creneau, poste, role) {
     if (!exiger() || etat.occupe) return;
     etat.occupe = true; rendre();
-    var d = { jour: etat.jour, creneau: creneau, poste: poste, prenom: etat.moi.prenom, initiale: etat.moi.initiale, classe: etat.moi.classe, code: etat.moi.code };
+    var d = { date: etat.date, creneau: creneau, poste: poste, role: role, repeter: etat.repeter,
+              prenom: etat.moi.prenom, initiale: etat.moi.initiale, classe: etat.moi.classe, code: etat.moi.code };
     appel("inscrire", d).then(function (r) {
-      etat.config = r.config; etat.inscriptions = r.inscriptions;
-      rendre(); bravo(creneau, poste);
-    }).catch(function (e) { toast(messageErreur(e), true); return charger(); })
-      .then(function () { etat.occupe = false; rendre(); });
+      appliquer(r); etat.occupe = false; rendre();
+      bravo(creneau, poste, role, r.ajoutees || [d.date], r.sautees || []);
+    }).catch(function (e) {
+      toast(messageErreur(e), true); etat.occupe = false; return charger();
+    });
   }
   function retirer(g) {
     if (!exiger() || etat.occupe) return;
     etat.occupe = true;
     appel("retirer", g.id, etat.moi).then(function (r) {
-      etat.config = r.config; etat.inscriptions = r.inscriptions;
-      toast("Retiré du poste " + g.poste.toLowerCase() + ".");
+      appliquer(r);
+      toast("Retiré : " + dateLongue(g.date) + ", " + g.creneau.replace("-", " – ") + ".");
     }).catch(function (e) { toast(messageErreur(e), true); })
       .then(function () { etat.occupe = false; rendre(); });
   }
+  function appliquer(r) {
+    etat.config = r.config; etat.inscriptions = r.inscriptions; if (r.aujourdhui) etat.aujourdhui = r.aujourdhui;
+    construireSemaines();
+  }
   function charger() {
     return appel("getData", etat.moi).then(function (r) {
-      etat.config = r.config; etat.inscriptions = r.inscriptions; rendre();
+      appliquer(r); rendre();
       if (r.codeRefuse) toast("Code incorrect pour ce prénom et cette classe. Touche « Changer » pour corriger.", true);
-    })
-      .catch(function (e) { $("creneaux").textContent = "Impossible de charger le planning : " + messageErreur(e); });
+    }).catch(function (e) { $("creneaux").textContent = "Impossible de charger le planning : " + messageErreur(e); });
   }
 
   etat.moi = lireMoi();
   afficherMoi();
   charger();
-  // Rafraîchit le planning toutes les 30 s pour voir les inscriptions des autres
-  setInterval(function () { if (!etat.occupe && !document.hidden) charger(); }, 30000);
+  // Rafraîchit le planning toutes les 30 s pour voir les places prises par les autres
+  setInterval(function () { if (!etat.occupe && !document.hidden && $("bravo").hidden) charger(); }, 30000);
 })();
 </script>
 </body>
