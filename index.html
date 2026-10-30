@@ -158,8 +158,9 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 
 /* Planning global */
 .global { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
-.global summary { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; cursor: pointer; }
-.global[open] summary { margin-bottom: 8px; }
+.global h2 { font-family: var(--font-display); font-size: 1.1rem; margin: 0 0 4px; font-weight: 600; }
+.global .aide { margin: 0 0 8px; }
+
 .defile-global { overflow-x: auto; margin-top: 8px; }
 .table-global { border-collapse: collapse; font-size: .82rem; min-width: 100%; }
 .table-global th, .table-global td { border: 1px solid var(--line); padding: 6px; vertical-align: top; text-align: left; }
@@ -271,6 +272,17 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   </section>
 
 
+  <section class="global" id="global" hidden>
+    <h2>Qui fait quoi ?</h2>
+    <p class="aide">Toute la semaine, tous les postes : repère tes camarades pour te placer avec eux.</p>
+    <div class="semaine semaine-global">
+      <button class="sem-btn" id="glob-prec" type="button" aria-label="Semaine précédente">‹</button>
+      <b id="glob-titre">Semaine</b>
+      <button class="sem-btn" id="glob-suiv" type="button" aria-label="Semaine suivante">›</button>
+    </div>
+    <div class="defile-global"><table class="table-global" id="table-global"></table></div>
+  </section>
+
   <div class="zone-planning" id="zone-planning">
   <div class="legend" id="legende"></div>
 
@@ -288,11 +300,6 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 
   <section class="creneaux" id="creneaux" aria-live="polite"><p class="chargement">Chargement du planning…</p></section>
 
-  <details class="global" id="global">
-    <summary>Qui fait quoi cette semaine ?</summary>
-    <p class="aide">Toute la semaine, tous les postes : repère tes camarades pour te placer avec eux.</p>
-    <div class="defile-global"><table class="table-global" id="table-global"></table></div>
-  </details>
   </div>
 
   <footer class="pied"><a href="admin.html">Espace professeur</a></footer>
@@ -662,6 +669,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
         : "Complète ta fiche (prénom, 1re lettre du nom, classe) ainsi que tes disponibilités pour faire apparaître les plannings concernés.";
       $("etape-bouton").hidden = !etat.moi || !$("form-moi").hidden;
       rendreMes();
+      rendreGlobal();
       return;
     }
     var sem = etat.semaines[etat.semaine];
@@ -743,14 +751,30 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     });
 
     rendreMes();
-    rendreGlobal(sem);
+    rendreGlobal();
   }
 
-  function rendreGlobal(semFiltree) {
+  function semainesGlobales() {
+    var vues = {}, out = [];
+    datesOuvertes(etat.config).filter(function (d) { return d >= etat.aujourdhui; }).forEach(function (d) {
+      var l = lundiDe(d); if (!vues[l]) { vues[l] = { lundi: l, dates: [] }; out.push(vues[l]); } vues[l].dates.push(d);
+    });
+    return out;
+  }
+  $("glob-prec").addEventListener("click", function () { if (etat.semGlobal > 0) { etat.semGlobal--; rendreGlobal(); } });
+  $("glob-suiv").addEventListener("click", function () { etat.semGlobal++; rendreGlobal(); });
+  function rendreGlobal() {
     var c = etat.config, t = $("table-global"); t.textContent = "";
-    // Semaine complète (tous les jours ouverts), indépendamment des disponibilités
-    var lundi = semFiltree.lundi;
-    var jours = datesOuvertes(c).filter(function (d) { return lundiDe(d) === lundi; });
+    $("global").hidden = !etat.moi || !c;
+    if (!etat.moi || !c) return;
+    var semaines = semainesGlobales();
+    if (!semaines.length) { $("glob-titre").textContent = "Aucune semaine à venir"; return; }
+    etat.semGlobal = Math.min(Math.max(0, etat.semGlobal || 0), semaines.length - 1);
+    var sg = semaines[etat.semGlobal];
+    $("glob-prec").disabled = etat.semGlobal === 0; $("glob-suiv").disabled = etat.semGlobal >= semaines.length - 1;
+    var fin = enDate(sg.lundi); fin.setUTCDate(fin.getUTCDate() + 4);
+    $("glob-titre").textContent = "Semaine du " + jourMois(sg.lundi) + " au " + jourMois(enIso(fin));
+    var jours = sg.dates;
     var h = elt("tr"); h.appendChild(elt("th", null, ""));
     jours.forEach(function (d) { h.appendChild(elt("th", null, NOMS_JOURS[jourDe(d)].slice(0, 3) + ". " + jourMois(d))); });
     var th = elt("thead"); th.appendChild(h); t.appendChild(th);
