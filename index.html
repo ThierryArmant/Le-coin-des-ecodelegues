@@ -58,9 +58,9 @@ h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.7rem
 /* Identité */
 .moi { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 .moi h2 { font-family: var(--font-display); font-size: 1.1rem; margin: 0; font-weight: 600; }
-.champs { display: grid; grid-template-columns: 1fr 70px 90px; gap: 10px; }
+.champs { display: grid; grid-template-columns: 1fr 96px 90px; gap: 10px; }
 .champs .code { grid-column: 1 / -1; }
-@media (min-width: 520px) { .champs { grid-template-columns: 1fr 70px 90px 120px; } .champs .code { grid-column: auto; } }
+@media (min-width: 520px) { .champs { grid-template-columns: 1fr 110px 90px 130px; } .champs .code { grid-column: auto; } }
 label { display: flex; flex-direction: column; gap: 4px; font-size: .8rem; color: var(--muted); font-weight: 700; min-width: 0; }
 input { font: inherit; font-size: 1rem; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; min-width: 0; }
 input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -107,6 +107,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .mes li { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .mes .heure { font-size: .9rem; }
 .vide { color: var(--muted); font-size: .9rem; margin: 0; }
+.pied { text-align: center; font-size: .82rem; padding-top: 8px; }
+.pied a { color: var(--muted); }
 .alerte { color: var(--danger); font-weight: 700; font-size: .92rem; margin: 0; }
 
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 700; max-width: calc(100% - 32px); box-shadow: 0 6px 20px rgba(0,0,0,.2); z-index: 20; }
@@ -190,13 +192,13 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   <section class="moi" id="moi" aria-labelledby="moi-titre">
     <h2 id="moi-titre">Qui es-tu ?</h2>
     <form id="form-moi" class="champs" novalidate>
-      <label>Prénom<input id="prenom" autocomplete="given-name" maxlength="30" required></label>
-      <label>Initiale<input id="initiale" maxlength="1" autocomplete="off" required></label>
-      <label>Classe<input id="classe" maxlength="12" placeholder="4E2" autocomplete="off" required></label>
-      <label class="code">Code secret<input id="code" inputmode="numeric" pattern="\d{4}" maxlength="4" placeholder="4 chiffres" autocomplete="off" required></label>
+      <label>Ton prénom<input id="prenom" autocomplete="given-name" maxlength="30" placeholder="Léa" required></label>
+      <label>1re lettre du nom<input id="initiale" maxlength="1" autocomplete="off" placeholder="M" required></label>
+      <label>Ta classe<input id="classe" maxlength="12" placeholder="4E2" autocomplete="off" required></label>
+      <label class="code">Ton code secret<input id="code" inputmode="numeric" pattern="\d{4}" maxlength="4" placeholder="4 chiffres" autocomplete="off" required></label>
       <button class="btn btn-primaire" type="submit" style="grid-column:1/-1">C'est moi</button>
     </form>
-    <p class="aide" id="aide-moi">Invente un code de 4 chiffres et garde-le : il te servira pour te retirer d'un créneau.</p>
+    <p class="aide" id="aide-moi">Exemple : Léa Martin en 4e2 écrit « Léa », « M », « 4E2 ». Invente un code de 4 chiffres et garde-le : il te servira à retrouver tes créneaux.</p>
     <div class="resume" id="resume" hidden>
       <div><span class="aide">Tu t'inscris en tant que</span><br><strong id="resume-nom"></strong></div>
       <button class="btn btn-lien" id="changer" type="button">Changer</button>
@@ -222,6 +224,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 
   <section class="creneaux" id="creneaux" aria-live="polite"><p class="chargement">Chargement du planning…</p></section>
 
+  <footer class="pied"><a href="admin.html">Espace professeur</a></footer>
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
 <div class="bravo" id="bravo" hidden>
