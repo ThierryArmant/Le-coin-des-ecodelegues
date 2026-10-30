@@ -9,7 +9,7 @@
 /* Affiche A4 portrait : titre en haut, trois postes, QR code en bas — toujours en clair pour l'impression */
 :root {
   --bg: #ffffff; --fg: #1d2622; --muted: #5b6862; --line: #d3dad6; --accent: #1f6b4f;
-  --poste1: #2f5d8a; --poste2: #b07a16; --poste3: #6d4c2f; --inox: #eef1ef;
+  --poste1: #2f5d8a; --poste2: #b07a16; --poste3: #3e7b4f; --inox: #eef1ef; --fond1: #e3edfa; --fond2: #fcefcc; --fond3: #e0f2e3;
   --font-display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
   --font-body: "Atkinson Hyperlegible", system-ui, sans-serif;
   --font-data: "JetBrains Mono", ui-monospace, monospace;
@@ -30,7 +30,7 @@ body { font-family: var(--font-body); color: var(--fg); padding: 20px 16px; }
 h1 { font-family: var(--font-display); font-weight: 800; font-size: 44pt; line-height: .98; margin: 3mm 0 0; letter-spacing: -0.015em; }
 .chapo { font-size: 15pt; margin: 4mm 0 0; max-width: 34ch; line-height: 1.35; }
 .postes { display: grid; gap: 4mm; }
-.poste { display: grid; grid-template-columns: 9mm 1fr; background: var(--inox); border-radius: 4mm; overflow: hidden; }
+.poste { display: grid; grid-template-columns: 9mm 1fr; background: var(--pbg, var(--inox)); border-radius: 4mm; overflow: hidden; }
 .poste i { background: var(--c); }
 .poste div { padding: 4mm 5mm; }
 .poste b { font-family: var(--font-display); font-weight: 600; font-size: 17pt; display: block; }
@@ -111,6 +111,7 @@ h1 { font-family: var(--font-display); font-weight: 800; font-size: 44pt; line-h
   config.postes.forEach(function (p, i) {
     var l = document.createElement("div"); l.className = "poste";
     var b = document.createElement("i"); b.style.setProperty("--c", couleurs[i % couleurs.length]); l.appendChild(b);
+    l.style.setProperty("--pbg", ["var(--fond1)", "var(--fond2)", "var(--fond3)", "var(--inox)"][i % 4]);
     var d = document.createElement("div");
     var t = document.createElement("b"); t.textContent = p.nom; d.appendChild(t);
     var s = document.createElement("span"); s.textContent = descriptions[norm(p.nom)] || ""; d.appendChild(s);

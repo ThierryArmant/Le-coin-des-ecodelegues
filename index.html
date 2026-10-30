@@ -18,7 +18,10 @@
   --accent-fg: #ffffff;
   --poste1: #2f5d8a;      /* scan plateau : bleu ardoise */
   --poste2: #b07a16;      /* pain et fruits : blé */
-  --poste3: #6d4c2f;      /* biodéchets et emballages : terre */
+  --poste3: #3e7b4f;      /* biodéchets et emballages : vert */
+  --fond1: #e3edfa;       /* pastels des postes */
+  --fond2: #fcefcc;
+  --fond3: #e0f2e3;
   --free: #e4ece8;
   --mine: #fff4cc;
   --danger: #a3331f;
@@ -28,12 +31,12 @@
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #141a17; --surface: #1d2521; --fg: #e6ece9; --muted: #9aa8a1; --line: #2e3a34;
-  --accent: #4fbf91; --accent-fg: #0d1512; --poste1: #79a8d6; --poste2: #e0b05a; --poste3: #c39a72;
+  --accent: #4fbf91; --accent-fg: #0d1512; --poste1: #79a8d6; --poste2: #e0b05a; --poste3: #7fc796; --fond1: #1d2a3a; --fond2: #352d17; --fond3: #1b3324;
   --free: #24302b; --mine: #3d3516; --danger: #f08a73; color-scheme: dark;
 } }
 :root[data-theme="dark"] {
   --bg: #141a17; --surface: #1d2521; --fg: #e6ece9; --muted: #9aa8a1; --line: #2e3a34;
-  --accent: #4fbf91; --accent-fg: #0d1512; --poste1: #79a8d6; --poste2: #e0b05a; --poste3: #c39a72;
+  --accent: #4fbf91; --accent-fg: #0d1512; --poste1: #79a8d6; --poste2: #e0b05a; --poste3: #7fc796; --fond1: #1d2a3a; --fond2: #352d17; --fond3: #1b3324;
   --free: #24302b; --mine: #3d3516; --danger: #f08a73; color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -52,7 +55,7 @@ h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.7rem
 .banner[hidden] { display: none; }
 
 .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: .85rem; color: var(--muted); }
-.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; color: var(--fg); }
 .dot { width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex: none; }
 
 /* Identité */
@@ -86,7 +89,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .creneau-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
 .heure { font-family: var(--font-data); font-weight: 700; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
 .taux { font-family: var(--font-data); font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.poste { display: grid; grid-template-columns: 6px 1fr; border-bottom: 1px solid var(--line); }
+.poste { display: grid; grid-template-columns: 8px 1fr; border-bottom: 1px solid var(--line); background: var(--pbg, var(--surface)); }
 .poste:last-child { border-bottom: 0; }
 .poste-bande { background: var(--c); }
 .poste-corps { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -95,7 +98,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .places { display: flex; flex-wrap: wrap; gap: 6px; }
 .place { font: inherit; font-size: .9rem; border-radius: 999px; padding: 5px 12px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); display: inline-flex; align-items: center; gap: 6px; max-width: 100%; }
 .place .classe { color: var(--muted); font-size: .8rem; }
-.place.libre { border-style: dashed; color: var(--accent); background: var(--free); cursor: pointer; font-weight: 700; }
+.place.libre { border-style: dashed; color: var(--accent); background: var(--surface); cursor: pointer; font-weight: 700; }
 .place.libre:hover { border-color: var(--accent); }
 .place.libre:disabled { cursor: default; opacity: .55; }
 .place.moi-meme { background: var(--mine); border-color: var(--poste2); cursor: pointer; }
@@ -144,7 +147,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .semaine b { text-align: center; font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
 .sem-btn { font: inherit; font-size: 1.4rem; line-height: 1; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
 .sem-btn:disabled { opacity: .35; cursor: default; }
-.repeter { flex-direction: row; align-items: center; gap: 10px; font-size: .92rem; color: var(--fg); font-weight: 400; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.repeter { flex-direction: row; justify-content: flex-start; align-items: center; gap: 10px; font-size: .92rem; color: var(--fg); font-weight: 400; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
 .repeter input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
 /* Remplaçants */
 .doublure { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; border-top: 1px dashed var(--line); }
@@ -262,6 +265,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 (function () {
   "use strict";
   var COULEURS = ["var(--poste1)", "var(--poste2)", "var(--poste3)", "var(--accent)", "var(--muted)"];
+  var FONDS = ["var(--fond1)", "var(--fond2)", "var(--fond3)", "var(--surface)", "var(--surface)"];
 
   /* ---- Adresse du serveur (déploiement Apps Script, se termine par /exec).
          Laisse vide pour un aperçu avec des exemples, sans enregistrement. ---- */
@@ -493,6 +497,10 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     var i = etat.config.postes.findIndex(function (p) { return p.nom === nom; });
     return COULEURS[Math.max(0, i) % COULEURS.length];
   }
+  function fondPoste(nom) {
+    var i = etat.config.postes.findIndex(function (p) { return p.nom === nom; });
+    return FONDS[Math.max(0, i) % FONDS.length];
+  }
   function iconePoste(nom) {
     var i = Math.max(0, etat.config.postes.findIndex(function (p) { return p.nom === nom; }));
     var s = elt("span"); s.innerHTML = ICONES[i % ICONES.length]; s.firstChild.style.setProperty("--c", couleurPoste(nom)); return s.firstChild;
@@ -559,7 +567,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 
     // Légende
     var lg = $("legende"); lg.textContent = "";
-    c.postes.forEach(function (p) { var s = elt("span"); s.appendChild(iconePoste(p.nom)); s.appendChild(document.createTextNode(p.nom)); lg.appendChild(s); });
+    c.postes.forEach(function (p) { var s = elt("span"); s.style.background = fondPoste(p.nom); s.appendChild(iconePoste(p.nom)); s.appendChild(document.createTextNode(p.nom)); lg.appendChild(s); });
 
     // Navigation de semaine
     var dl = enDate(sem.lundi); dl.setUTCDate(dl.getUTCDate() + 4);
@@ -609,7 +617,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       bloc.appendChild(tete);
       c.postes.forEach(function (p) {
         var ligne = elt("div", "poste");
-        var bande = elt("div", "poste-bande"); bande.style.setProperty("--c", couleurPoste(p.nom)); ligne.appendChild(bande);
+        var bande = elt("div", "poste-bande"); bande.style.setProperty("--c", couleurPoste(p.nom)); ligne.appendChild(bande); ligne.style.setProperty("--pbg", fondPoste(p.nom));
         var corps = elt("div", "poste-corps");
         var titulaires = ici.filter(function (i) { return i.poste === p.nom && i.role !== "remplacant"; });
         var doublures = ici.filter(function (i) { return i.poste === p.nom && i.role === "remplacant"; });
