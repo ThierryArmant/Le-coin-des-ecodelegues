@@ -80,8 +80,8 @@ function repondre_(fn) {
 /* ---------- API appelée par la page ---------- */
 
 /**
- * Données publiques : aucune information nominative.
- * Chaque place prise n'indique que date, créneau et poste.
+ * Visiteur anonyme : aucune information nominative (date, créneau et poste seulement).
+ * Élève identifié avec son code : prénom, initiale et classe des inscrits, pour savoir qui fait quoi.
  * Si l'élève fournit son identité et son code, ses propres inscriptions sont marquées « mien ».
  */
 function getData(identite) {
@@ -102,6 +102,9 @@ function getData(identite) {
       const mien = !!id && cle_(i) === id.cle;
       const o = { date: i.date, creneau: i.creneau, poste: i.poste, role: i.role, mien: mien };
       if (mien) o.id = i.id;
+      // Élève identifié (fiche remplie, bon code) : il voit qui fait quoi (prénom, initiale, classe).
+      // Visiteur anonyme : aucune donnée nominative.
+      if (id) { o.prenom = i.prenom; o.initiale = i.initiale; o.classe = i.classe; }
       return o;
     }),
   };

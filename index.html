@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
 <title>Brigade cantine Giono</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&display=swap">
@@ -148,6 +149,21 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .etape b { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
 .etape p { margin: 0; color: var(--muted); }
 .zone-planning { display: flex; flex-direction: column; gap: 18px; }
+
+/* Planning global */
+.global { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.global summary { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; cursor: pointer; }
+.global[open] summary { margin-bottom: 8px; }
+.defile-global { overflow-x: auto; margin-top: 8px; }
+.table-global { border-collapse: collapse; font-size: .82rem; min-width: 100%; }
+.table-global th, .table-global td { border: 1px solid var(--line); padding: 6px; vertical-align: top; text-align: left; }
+.table-global th { background: var(--bg); font-family: var(--font-display); font-weight: 600; white-space: nowrap; }
+.table-global th.h { font-family: var(--font-data); font-size: .76rem; }
+.tg-poste { background: var(--pbg); border-left: 4px solid var(--c); border-radius: 4px; padding: 3px 6px; margin-bottom: 4px; min-width: 130px; }
+.tg-poste:last-child { margin-bottom: 0; }
+.tg-poste small { display: block; color: var(--muted); font-size: .7rem; }
+.tg-poste .moi-tg { font-weight: 700; }
+.tg-libre { color: var(--muted); font-style: italic; }
 /* Semaines */
 .semaine { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; }
 .semaine b { text-align: center; font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
@@ -200,7 +216,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   <div class="hero-texte">
     <div class="eyebrow">Collège Jean Giono · service du midi</div>
     <h1 id="titre">Brigade cantine Giono</h1>
-    <p class="lead">Choisis un poste sur les créneaux où tu es libre. Les autres ne voient pas ton nom : seulement que la place est prise.</p>
+    <p class="lead">Choisis un poste sur les créneaux où tu es libre. Une fois ta fiche remplie, tu vois qui est inscrit pour te placer avec tes camarades.</p>
   </div>
   </header>
 
@@ -263,6 +279,12 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   <label class="repeter"><input type="checkbox" id="repeter"><span id="repeter-libelle">Chaque semaine jusqu'en juin</span></label>
 
   <section class="creneaux" id="creneaux" aria-live="polite"><p class="chargement">Chargement du planning…</p></section>
+
+  <details class="global" id="global">
+    <summary>Qui fait quoi cette semaine ?</summary>
+    <p class="aide">Toute la semaine, tous les postes : repère tes camarades pour te placer avec eux.</p>
+    <div class="defile-global"><table class="table-global" id="table-global"></table></div>
+  </details>
   </div>
 
   <footer class="pied"><a href="admin.html">Espace professeur</a></footer>
@@ -346,7 +368,9 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       var refuse = !!k && liste.some(function (i) { return cle(i) === k && i.code !== ident.code; });
       return { config: config, aujourdhui: isoLocal(), codeRefuse: refuse, inscriptions: liste.map(function (i) {
         var mien = !!k && !refuse && cle(i) === k;
-        var o = { date: i.date, creneau: i.creneau, poste: i.poste, role: i.role, mien: mien }; if (mien) o.id = i.id; return o;
+        var o = { date: i.date, creneau: i.creneau, poste: i.poste, role: i.role, mien: mien }; if (mien) o.id = i.id;
+        if (k && !refuse) { o.prenom = i.prenom; o.initiale = i.initiale; o.classe = i.classe; }
+        return o;
       }) };
     }
     return {
@@ -667,6 +691,40 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     });
 
     rendreMes();
+    rendreGlobal(sem);
+  }
+
+  function rendreGlobal(semFiltree) {
+    var c = etat.config, t = $("table-global"); t.textContent = "";
+    // Semaine complète (tous les jours ouverts), indépendamment des disponibilités
+    var lundi = semFiltree.lundi;
+    var jours = datesOuvertes(c).filter(function (d) { return lundiDe(d) === lundi; });
+    var h = elt("tr"); h.appendChild(elt("th", null, ""));
+    jours.forEach(function (d) { h.appendChild(elt("th", null, NOMS_JOURS[jourDe(d)].slice(0, 3) + ". " + jourMois(d))); });
+    var th = elt("thead"); th.appendChild(h); t.appendChild(th);
+    var tb = elt("tbody");
+    c.creneaux.forEach(function (cr) {
+      var tr = elt("tr"); tr.appendChild(elt("th", "h", cr.replace("-", " – ")));
+      jours.forEach(function (d) {
+        var td = elt("td");
+        c.postes.forEach(function (p) {
+          var gens = etat.inscriptions.filter(function (i) { return i.date === d && i.creneau === cr && i.poste === p.nom; });
+          var b = elt("div", "tg-poste"); b.style.setProperty("--c", couleurPoste(p.nom)); b.style.setProperty("--pbg", fondPoste(p.nom));
+          b.appendChild(elt("small", null, p.nom));
+          if (!gens.length) b.appendChild(elt("span", "tg-libre", "libre"));
+          gens.forEach(function (g, k) {
+            var nom = g.mien && etat.moi ? cap(etat.moi.prenom) + " " + etat.moi.initiale.toUpperCase() + ". (toi)"
+                    : g.prenom ? cap(g.prenom) + " " + g.initiale + ". " + g.classe : "pris";
+            if (k) b.appendChild(document.createTextNode(", "));
+            b.appendChild(elt("span", g.mien ? "moi-tg" : null, nom));
+          });
+          td.appendChild(b);
+        });
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
   }
 
   function rangee(gens, capacite, cr, poste, role, dejaLa, moi) {
@@ -680,7 +738,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
         pill.appendChild(elt("span", "x", "×"));
         pill.addEventListener("click", function () { retirer(g); });
       } else {
-        pill.textContent = "Déjà pris";
+        if (g.prenom) { pill.appendChild(document.createTextNode(cap(g.prenom) + " " + g.initiale + ".")); pill.appendChild(elt("span", "classe", g.classe)); }
+        else pill.textContent = "Déjà pris";
       }
       places.appendChild(pill);
     });
