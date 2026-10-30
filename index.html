@@ -629,13 +629,13 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     var total = mesAVenir().length, avant = total - ajoutees.length;
     var r = rang(total);
     var monte = RANGS.some(function (x) { return x.min > avant && x.min <= total; });
-    $("bravo-titre").textContent = monte ? r.nom + " !" : "Merci " + cap(etat.moi.prenom) + " !";
+    $("bravo-titre").textContent = "Merci " + cap(etat.moi.prenom) + " !";
     var quoi = (role === "remplacant" ? "remplaçant(e) au poste " : "au poste ") + poste.toLowerCase();
     var texte = ajoutees.length > 1
       ? "Tu es inscrit(e) " + quoi + ", " + creneau.replace("-", " – ") + ", " + ajoutees.length + " " + NOMS_JOURS[jourDe(ajoutees[0])].toLowerCase() + "s jusqu'au " + jourMois(ajoutees[ajoutees.length - 1]).replace(/\.$/, "") + "."
       : "Tu es attendu(e) " + dateLongue(ajoutees[0]) + ", " + creneau.replace("-", " – ") + ", " + quoi + ".";
     if (sautees.length) texte += " " + sautees.length + " semaine" + (sautees.length > 1 ? "s étaient déjà complètes" : " était déjà complète") + ".";
-    $("bravo-texte").textContent = texte + (r ? " " + r.suite : "");
+    $("bravo-texte").textContent = texte;
     var carte = document.querySelector(".bravo-carte");
     carte.querySelectorAll(".confetti").forEach(function (c) { c.remove(); });
     var couleurs = ["var(--poste1)", "var(--poste2)", "var(--poste3)", "var(--accent)"];
@@ -893,7 +893,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       ul.appendChild(li);
     });
     mes.appendChild(ul);
-    if (r) mes.appendChild(elt("p", "grade", "Grade : " + r.nom));
+    mes.appendChild(elt("p", "grade", "Responsable tables de tri"));
     if (miens.length > max) mes.appendChild(elt("p", "vide", "Et " + (miens.length - max) + " autres services jusqu'au " + jourMois(miens[miens.length - 1].date).replace(/\.$/, "") + "."));
   }
 
