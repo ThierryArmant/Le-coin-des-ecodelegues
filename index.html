@@ -157,18 +157,20 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .zone-planning { display: flex; flex-direction: column; gap: 18px; }
 
 /* Planning global */
+@media (min-width: 760px) { .global { align-self: center; width: min(820px, calc(100vw - 32px)); } }
 .global { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
 .global h2 { font-family: var(--font-display); font-size: 1.1rem; margin: 0 0 4px; font-weight: 600; }
 .global .aide { margin: 0 0 8px; }
 
 .defile-global { overflow-x: auto; margin-top: 8px; }
 .table-global { border-collapse: collapse; font-size: .82rem; min-width: 100%; }
-.table-global th, .table-global td { border: 1px solid var(--line); padding: 6px; vertical-align: top; text-align: left; }
+.table-global th, .table-global td { border: 1px solid var(--line); padding: 4px; vertical-align: top; text-align: left; }
 .table-global th { background: var(--bg); font-family: var(--font-display); font-weight: 600; white-space: nowrap; }
-.table-global th.h { font-family: var(--font-data); font-size: .76rem; }
-.tg-poste { background: var(--pbg); border-left: 4px solid var(--c); border-radius: 4px; padding: 3px 6px; margin-bottom: 4px; min-width: 130px; }
+.table-global th.h { font-family: var(--font-data); font-size: .72rem; white-space: pre-line; width: 1%; padding: 6px 4px; line-height: 1.3; }
+.table-global td { width: 24%; }
+.tg-poste { background: var(--pbg); border-left: 3px solid var(--c); border-radius: 4px; padding: 2px 4px; margin-bottom: 3px; min-width: 70px; font-size: .78rem; line-height: 1.25; }
 .tg-poste:last-child { margin-bottom: 0; }
-.tg-poste small { display: block; color: var(--muted); font-size: .7rem; }
+.tg-poste small { display: block; color: var(--muted); font-size: .64rem; }
 .tg-poste .moi-tg { font-weight: 700; }
 .tg-libre { color: var(--muted); font-style: italic; }
 .lien-mode { font: inherit; font-size: .9rem; background: none; border: 0; color: var(--accent); text-decoration: underline; cursor: pointer; padding: 4px 0; justify-self: center; }
@@ -780,7 +782,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     var th = elt("thead"); th.appendChild(h); t.appendChild(th);
     var tb = elt("tbody");
     c.creneaux.forEach(function (cr) {
-      var tr = elt("tr"); tr.appendChild(elt("th", "h", cr.replace("-", " – ")));
+      var tr = elt("tr"); tr.appendChild(elt("th", "h", cr.replace("-", "\n")));
       jours.forEach(function (d) {
         var td = elt("td");
         c.postes.forEach(function (p) {
