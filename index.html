@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>Brigade cantine Giono</title>
+<title>Tables de tri Giono</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
@@ -239,8 +239,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 <div class="wrap">
   <header class="hero">
   <div class="hero-texte">
-    <div class="eyebrow">Collège Jean Giono · service du midi</div>
-    <h1 id="titre">Brigade cantine Giono</h1>
+    <div class="eyebrow">Collège Jean Giono · cantine</div>
+    <h1 id="titre">Responsables tables de tri</h1>
     <p class="lead">Choisis un poste sur les créneaux où tu es libre. Une fois ta fiche remplie, tu vois qui est inscrit pour te placer avec tes camarades.</p>
   </div>
   </header>
@@ -248,7 +248,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   <div class="banner" id="banniere" hidden></div>
 
   <section class="jauge" aria-label="Remplissage de la semaine affichée">
-    <div class="jauge-haut"><b id="jauge-titre">La brigade se forme</b><span id="jauge-chiffres"></span></div>
+    <div class="jauge-haut"><b id="jauge-titre">Responsables tables de tri</b><span id="jauge-chiffres"></span></div>
     <div class="barre" id="barre"></div>
   </section>
 
@@ -603,9 +603,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20c0-9 6-15 15-15 0 9-6 15-15 15z"/><path d="M5 20 13 12"/></svg>'
   ];
   var RANGS = [
-    { min: 1, nom: "Recrue de la brigade", suite: "Encore quelques services pour devenir Pilier du self." },
-    { min: 5, nom: "Pilier du self", suite: "Continue : à 15 services, tu deviens Chef de brigade." },
-    { min: 15, nom: "Chef de brigade", suite: "Le self tourne grâce à toi." }
+    { min: 1, nom: "Responsable tables de tri", suite: "" }
   ];
   function rang(n) { var r = null; RANGS.forEach(function (x) { if (n >= x.min) r = x; }); return r; }
   function couleurPoste(nom) {
@@ -670,7 +668,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   /* ---- Rendu ---- */
   function rendre() {
     var c = etat.config; if (!c) return;
-    $("titre").textContent = c.titre;
+
     var ban = $("banniere");
     if (!gas) { ban.hidden = false; ban.textContent = "Aperçu : les places prises sont des exemples et tes essais ne sont pas enregistrés."; }
     else if (!c.ouvert) { ban.hidden = false; ban.textContent = "Les inscriptions sont fermées pour le moment. Tu peux consulter le planning."; }
@@ -708,7 +706,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     var totalSem = parCase * c.creneaux.length * sem.dates.length;
     var dela = etat.inscriptions.filter(function (i) { return sem.dates.indexOf(i.date) >= 0 && i.role !== "remplacant"; });
     var pct = totalSem ? Math.round(dela.length / totalSem * 100) : 0;
-    $("jauge-titre").textContent = pct >= 100 ? "Brigade au complet cette semaine" : pct >= 50 ? "La brigade prend forme" : "La brigade recrute";
+    $("jauge-titre").textContent = pct >= 100 ? "Tables de tri au complet cette semaine" : pct >= 50 ? "Les tables de tri se remplissent" : "On cherche des responsables tables de tri";
     $("jauge-chiffres").textContent = dela.length + " / " + totalSem + " places · " + pct + " %";
     var barre = $("barre"); barre.textContent = "";
     c.postes.forEach(function (p) {

@@ -34,7 +34,7 @@ const ENTETES_FICHES = ['Prénom', 'Initiale', 'Classe', 'Code élève', 'Dispon
 // Calendrier 2026-2027, zone B (académie d'Aix-Marseille)
 const REGLAGES_PAR_DEFAUT = [
   ['Paramètre', 'Valeur', 'Aide'],
-  ['Titre', 'Brigade cantine Giono', 'Titre affiché en haut de la page'],
+  ['Titre', 'Responsables tables de tri', 'Titre (information)'],
   ['Jours', 'Lundi, Mardi, Jeudi, Vendredi', 'Jours de cantine, séparés par des virgules'],
   ['Créneaux', '11h30-12h00, 12h00-12h30, 12h30-13h00, 13h00-13h30', 'Séparés par des virgules'],
   ['Postes', 'Scan plateau:2; Pain et fruits:2; Biodéchets et emballages:2', 'Nom:nombre de places, séparés par des points-virgules'],

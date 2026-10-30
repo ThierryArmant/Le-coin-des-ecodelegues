@@ -1,4 +1,4 @@
-# Planning cantine écodélégués — Collège Jean Giono
+# Responsables tables de tri — Collège Jean Giono
 
 Gestion des tables de tri au self. Planning en ligne où les élèves s'inscrivent eux-mêmes pour aider au service du midi, selon leur emploi du temps.
 
