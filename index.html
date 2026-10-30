@@ -55,6 +55,7 @@ h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.7rem
 .banner[hidden] { display: none; }
 
 .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: .85rem; color: var(--muted); }
+.legende-note { flex-basis: 100%; font-style: normal; font-size: .88rem; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; color: var(--fg); }
 .dot { width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex: none; }
 
@@ -595,6 +596,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     // Légende
     var lg = $("legende"); lg.textContent = "";
     c.postes.forEach(function (p) { var s = elt("span"); s.style.background = fondPoste(p.nom); s.appendChild(iconePoste(p.nom)); s.appendChild(document.createTextNode(p.nom)); lg.appendChild(s); });
+    lg.appendChild(elt("em", "legende-note", "Chaque poste est doublé : 2 élèves, en cas d'absence ou de besoin."));
 
     // Navigation de semaine
     var dl = enDate(sem.lundi); dl.setUTCDate(dl.getUTCDate() + 4);
