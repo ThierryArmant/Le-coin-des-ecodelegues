@@ -114,6 +114,15 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .lien-affiche { color: var(--accent); font-weight: 700; font-size: .9rem; }
 
 
+
+/* Bandeau photo */
+.hero { position: relative; border-radius: 18px; overflow: hidden; min-height: 290px; display: flex; align-items: flex-end; padding: 18px; background: #3a2c22 url("fond-cantine-900.jpg") 70% center / cover no-repeat; color: #fff; }
+.hero::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(12, 20, 16, .88) 0%, rgba(12, 20, 16, .45) 55%, rgba(12, 20, 16, 0) 100%); }
+.hero-texte { position: relative; display: flex; flex-direction: column; gap: 4px; }
+.hero .eyebrow { color: #a8ecc9; }
+.hero h1 { color: #fff; text-shadow: 0 2px 14px rgba(0, 0, 0, .35); }
+.hero .lead { color: rgba(255, 255, 255, .9); margin: 4px 0 0; }
+@media (min-width: 700px) { .hero { min-height: 300px; background-image: url("fond-cantine.jpg"); padding: 24px; } }
 /* Semaines */
 .semaine { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; }
 .semaine b { text-align: center; font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
@@ -162,10 +171,12 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 </head>
 <body>
 <div class="wrap">
-  <header>
+  <header class="hero">
+  <div class="hero-texte">
     <div class="eyebrow">Collège Jean Giono · service du midi</div>
     <h1 id="titre">Brigade cantine Giono</h1>
     <p class="lead">Choisis un poste sur les créneaux où tu es libre. Les autres ne voient pas ton nom : seulement que la place est prise.</p>
+  </div>
   </header>
 
   <div class="banner" id="banniere" hidden></div>
