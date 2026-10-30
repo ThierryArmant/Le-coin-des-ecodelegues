@@ -68,6 +68,7 @@ function doPost(e) {
     if (corps.action === 'inscrire') return inscrire(corps);
     if (corps.action === 'retirer') return retirer(corps.id, corps);
     if (corps.action === 'admin') return admin(corps.code);
+    if (corps.action === 'adminAction') return adminAction(corps);
     if (corps.action === 'modifierFiche') return modifierFiche(corps.ancien, corps.nouveau);
     if (corps.action === 'enregistrerFiche') return enregistrerFiche(corps);
     throw new Error('Action inconnue.');
@@ -160,7 +161,7 @@ function inscrire(demande) {
       const pleine = memeCase.filter(i => i.poste === poste.nom && i.role === role).length >= capacite;
       if (dejaLa || pleine) { sautees.push(d); return; }
       lignes.push([Utilities.getUuid().slice(0, 8), new Date(), d, NOMS_JOURS[jourDe_(d)], demande.creneau, poste.nom,
-                   id.prenom, id.initiale, id.classe, "'" + id.code, role === 'remplacant' ? 'Remplaçant' : 'Titulaire']);
+                   "'" + id.prenom, "'" + id.initiale, "'" + id.classe, "'" + id.code, role === 'remplacant' ? 'Remplaçant' : 'Titulaire']);
       ajoutees.push(d);
     });
 
@@ -209,24 +210,77 @@ function retirer(idInscription, identite) {
  * Vue admin : toutes les inscriptions avec les noms, réservée au code professeur
  * (onglet « Réglages »). Une pause est imposée après chaque code faux.
  */
-function admin(code) {
+function verifierProf_(code) {
   preparerOnglets_();
   const brut = feuille_(ONGLET_REGLAGES).getDataRange().getDisplayValues()
     .filter(l => String(l[0]).trim() === 'Code professeur')[0];
   const attendu = brut ? String(brut[1]).trim() : '';
   if (attendu.length < 6) throw new Error('Choisis d\'abord un code d\'au moins 6 caractères dans l\'onglet « Réglages », ligne « Code professeur ».');
   if (String(code || '') !== attendu) { Utilities.sleep(2000); throw new Error('Code professeur incorrect.'); }
+}
+
+function admin(code) {
+  verifierProf_(code);
   const config = lireReglages_();
+  const fiches = [];
+  const fi = feuille_(ONGLET_FICHES);
+  if (fi) fi.getDataRange().getDisplayValues().slice(1).forEach(l => {
+    if (l[0]) fiches.push({ prenom: l[0], initiale: l[1], classe: l[2], code: l[3],
+      dispos: String(l[4] || '').split(';').map(x => x.trim()).filter(Boolean) });
+  });
   return {
     config: config,
     aujourdhui: Utilities.formatDate(new Date(), 'Europe/Paris', 'yyyy-MM-dd'),
     dates: datesOuvertes_(config),
+    fiches: fiches,
     inscriptions: lireInscriptions_().map(i => ({
-      date: i.date, creneau: i.creneau, poste: i.poste, role: i.role,
+      id: i.id, date: i.date, creneau: i.creneau, poste: i.poste, role: i.role,
       prenom: i.prenom, initiale: i.initiale, classe: i.classe,
       code: /^\d{4}$/.test(i.empreinte) ? i.empreinte : '',
     })),
   };
+}
+
+/**
+ * Actions du professeur depuis la vue admin (code professeur obligatoire) :
+ *  - supprimerInscription { id }
+ *  - modifierEleve { ancien: {prenom, initiale, classe}, nouveau: {prenom, initiale, classe, code} }
+ *  - supprimerEleve { eleve: {prenom, initiale, classe} } : fiche et toutes ses inscriptions
+ */
+function adminAction(corps) {
+  verifierProf_(corps.codeProf);
+  const verrou = LockService.getScriptLock();
+  verrou.waitLock(20000);
+  try {
+    const ins = feuille_(ONGLET_INSCRIPTIONS), fi = feuille_(ONGLET_FICHES);
+    const lignesDe = (feuille, colPrenom, eleve) => {
+      const k = cle_(eleve), v = feuille.getDataRange().getDisplayValues(), out = [];
+      for (let r = 1; r < v.length; r++) {
+        if (cle_({ prenom: v[r][colPrenom], initiale: v[r][colPrenom + 1], classe: v[r][colPrenom + 2] }) === k) out.push(r + 1);
+      }
+      return out;
+    };
+    if (corps.op === 'supprimerInscription') {
+      const v = ins.getDataRange().getDisplayValues();
+      for (let r = v.length - 1; r >= 1; r--) if (String(v[r][0]) === String(corps.id)) ins.deleteRow(r + 1);
+    } else if (corps.op === 'supprimerEleve') {
+      lignesDe(ins, 6, corps.eleve).reverse().forEach(r => ins.deleteRow(r));
+      lignesDe(fi, 0, corps.eleve).reverse().forEach(r => fi.deleteRow(r));
+    } else if (corps.op === 'modifierEleve') {
+      const n = verifierIdentite_(corps.nouveau);
+      if (cle_(corps.ancien) !== n.cle && (lignesDe(ins, 6, n).length || lignesDe(fi, 0, n).length)) {
+        throw new Error('Un autre élève porte déjà ce prénom, cette initiale et cette classe.');
+      }
+      lignesDe(ins, 6, corps.ancien).forEach(r => ins.getRange(r, 7, 1, 4).setValues([["'" + n.prenom, "'" + n.initiale, "'" + n.classe, "'" + n.code]]));
+      lignesDe(fi, 0, corps.ancien).forEach(r => fi.getRange(r, 1, 1, 4).setValues([["'" + n.prenom, "'" + n.initiale, "'" + n.classe, "'" + n.code]]));
+    } else {
+      throw new Error('Action inconnue.');
+    }
+    SpreadsheetApp.flush();
+  } finally {
+    verrou.releaseLock();
+  }
+  return admin(corps.codeProf);
 }
 
 /**
@@ -252,7 +306,7 @@ function modifierFiche(ancien, nouveau) {
         throw new Error('Ce prénom et cette classe sont déjà utilisés par un autre élève. Ajoute une lettre pour te distinguer ou demande à ton professeur.');
       }
     }
-    lignes.forEach(r => f.getRange(r, 7, 1, 4).setValues([[n.prenom, n.initiale, n.classe, "'" + n.code]]));
+    lignes.forEach(r => f.getRange(r, 7, 1, 4).setValues([["'" + n.prenom, "'" + n.initiale, "'" + n.classe, "'" + n.code]]));
     const ancienneFiche = lireFiche_(a);
     if (ancienneFiche && !codeOk_(ancienneFiche.code, a)) throw new Error('Code incorrect : seule la personne inscrite peut modifier sa fiche.');
     const dispos = (nouveau && nouveau.dispos) || (ancienneFiche ? ancienneFiche.dispos : []);
@@ -307,7 +361,7 @@ function lireFiche_(id) {
 
 function ecrireFiche_(id, dispos, ligne) {
   const f = feuille_(ONGLET_FICHES);
-  const valeurs = [[id.prenom, id.initiale, id.classe, "'" + id.code, dispos.join('; '), new Date()]];
+  const valeurs = [["'" + id.prenom, "'" + id.initiale, "'" + id.classe, "'" + id.code, dispos.join('; '), new Date()]];
   if (ligne) f.getRange(ligne, 1, 1, 6).setValues(valeurs);
   else f.getRange(f.getLastRow() + 1, 1, 1, 6).setValues(valeurs);
 }
@@ -349,6 +403,22 @@ function datesOuvertes_(config) {
 
 function feuille_(nom) {
   return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nom);
+}
+
+// « 4e5 » saisi par un élève a pu être lu comme 4 × 10^5 : on retrouve « 4E5 ».
+function reparerClasses_(feuille, colonne) {
+  if (!feuille || feuille.getLastRow() < 2) return;
+  const plage = feuille.getRange(2, colonne, feuille.getLastRow() - 1, 1);
+  const v = plage.getValues();
+  let change = false;
+  v.forEach(l => {
+    if (typeof l[0] === 'number') {
+      const m = l[0].toExponential().match(/^(\d)e\+(\d+)$/);
+      l[0] = m ? m[1] + 'E' + m[2] : String(l[0]);
+      change = true;
+    }
+  });
+  if (change) { plage.setNumberFormat('@'); plage.setValues(v); }
 }
 
 function preparerOnglets_() {
@@ -393,6 +463,8 @@ function preparerOnglets_() {
     f.getRange('J:J').setNumberFormat('@');
     f.hideColumns(10);
   }
+  reparerClasses_(f, 9);
+  reparerClasses_(ss.getSheetByName(ONGLET_FICHES), 3);
   if (f.getRange(1, 1, 1, ENTETES_INSCRIPTIONS.length).getDisplayValues()[0].join('|') !== ENTETES_INSCRIPTIONS.join('|')) {
     f.getRange(1, 1, 1, ENTETES_INSCRIPTIONS.length).setValues([ENTETES_INSCRIPTIONS]).setFontWeight('bold');
   }

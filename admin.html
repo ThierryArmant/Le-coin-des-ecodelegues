@@ -96,6 +96,16 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
 .rempl { color: var(--muted); font-size: .8rem; }
 .cell.complet { background: var(--ok-bg); border-radius: 6px; }
 
+
+.avis { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 700; z-index: 20; max-width: calc(100% - 32px); }
+.avis.erreur-avis { background: var(--bad); color: #fff; }
+.mini-btn { font: inherit; font-size: .8rem; border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+.mini-btn.danger { color: var(--bad); }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.suppr { font: inherit; border: 0; background: none; color: var(--bad); cursor: pointer; font-weight: 700; padding: 0 4px; }
+.edit input { width: 100%; min-width: 60px; padding: 5px 6px; font-size: .85rem; }
+.eleves td { vertical-align: middle; }
+.dispos-txt { font-size: .78rem; color: var(--muted); max-width: 260px; }
 /* Élèves */
 .eleves td.code { font-weight: 700; letter-spacing: .08em; }
 .eleves td.n { font-family: var(--font-data); font-variant-numeric: tabular-nums; text-align: right; }
@@ -162,14 +172,15 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
       </section>
 
       <section class="carte">
-        <h2>Élèves inscrits</h2>
-        <p class="aide">Les codes servent à aider un élève qui a oublié le sien. Ne les affiche pas devant la classe.</p>
+        <h2>Élèves</h2>
+        <p class="aide">Toutes les fiches, avec ou sans inscription. « Modifier » corrige le nom, la classe ou le code (les inscriptions suivent) ; « Supprimer » efface la fiche et ses inscriptions. Les codes servent à aider un élève qui a oublié le sien : ne les affiche pas devant la classe.</p>
         <div class="defile"><table class="eleves" id="eleves"></table></div>
       </section>
     </div>
   </div>
 </div>
 
+<div class="avis" id="avis" role="status" hidden></div>
 <script>
 (function () {
   "use strict";
@@ -192,6 +203,19 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
 
   function lireCode() { try { return sessionStorage.getItem("brigade-admin") || ""; } catch (e) { return ""; } }
   function ecrireCode(c) { try { c ? sessionStorage.setItem("brigade-admin", c) : sessionStorage.removeItem("brigade-admin"); } catch (e) {} }
+
+  function action(op, donnees, message) {
+    var corps = Object.assign({ action: "adminAction", codeProf: lireCode(), op: op }, donnees);
+    return fetch(ADRESSE_PLANNING, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(corps) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (d.erreur) throw new Error(d.erreur); etat.d = d; rendre(); avis(message); })
+      .catch(function (e) { avis(String(e.message || e).replace(/^Error:\s*/, ""), true); });
+  }
+  var minuteurAvis;
+  function avis(txt, erreur) {
+    var a = $("avis"); a.textContent = txt; a.className = "avis" + (erreur ? " erreur-avis" : ""); a.hidden = false;
+    clearTimeout(minuteurAvis); minuteurAvis = setTimeout(function () { a.hidden = true; }, 4000);
+  }
 
   function charger(code) {
     $("erreur").hidden = true;
@@ -308,7 +332,15 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
           var rem = ici.filter(function (i) { return i.poste === p.nom && i.role === "remplacant"; });
           var b = elt("div", "pc"); b.style.setProperty("--c", couleur(p.nom));
           b.appendChild(elt("span", "pc-nom", p.nom));
-          tit.forEach(function (i) { b.appendChild(elt("span", "n-ok", nomEleve(i))); });
+          tit.forEach(function (i) {
+            var l = elt("span", "n-ok", nomEleve(i));
+            var x = elt("button", "suppr", "×"); x.type = "button"; x.title = "Retirer cette inscription";
+            x.addEventListener("click", function () {
+              if (confirm("Retirer " + nomEleve(i) + " du poste " + i.poste + ", " + jourCourt(i.date) + " " + i.creneau + " ?"))
+                action("supprimerInscription", { id: i.id }, "Inscription retirée.");
+            });
+            l.appendChild(x); b.appendChild(l);
+          });
           if (tit.length < p.places) { complet = false; b.appendChild(elt("span", tit.length ? "trou demi" : "trou", (p.places - tit.length) + " à pourvoir")); }
           rem.forEach(function (i) { b.appendChild(elt("span", "rempl", "Remplaçant : " + nomEleve(i))); });
           cell.appendChild(b);
@@ -321,28 +353,77 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
     g.appendChild(tb);
   }
 
+  function cleE(o) { return [o.prenom, o.initiale, o.classe].map(function (x) { return String(x || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, ""); }).join("|"); }
+  function resumeDispos(d) {
+    if (!d || !d.length) return "—";
+    var parJour = {};
+    d.forEach(function (k) { var p = k.split("|"); (parJour[p[0]] = parJour[p[0]] || []).push((p[1] || "").split("-")[0]); });
+    return Object.keys(parJour).map(function (j) { return j.slice(0, 3).toLowerCase() + ". " + parJour[j].join(", "); }).join(" · ");
+  }
   function rendreEleves() {
     var d = etat.d, t = $("eleves"); t.textContent = "";
     var par = {};
-    d.inscriptions.filter(function (i) { return i.date >= d.aujourdhui; }).forEach(function (i) {
-      var k = nomEleve(i); var o = par[k] || (par[k] = { nom: i.prenom + " " + i.initiale + ".", classe: i.classe, code: i.code || "", tit: 0, rem: 0, prochain: i.date, postes: {} });
-      if (i.role === "remplacant") o.rem++; else o.tit++;
-      if (i.date < o.prochain) o.prochain = i.date;
-      o.postes[i.poste] = 1;
+    function eleve(src) {
+      var k = cleE(src);
+      return par[k] || (par[k] = { prenom: src.prenom, initiale: src.initiale, classe: src.classe, code: src.code || "", dispos: null, services: 0, prochain: null, postes: {} });
+    }
+    (d.fiches || []).forEach(function (f) { var o = eleve(f); o.dispos = f.dispos; if (f.code) o.code = f.code; });
+    d.inscriptions.forEach(function (i) {
+      var o = eleve(i); if (!o.code && i.code) o.code = i.code;
+      if (i.date >= d.aujourdhui) { o.services++; if (!o.prochain || i.date < o.prochain) o.prochain = i.date; o.postes[i.poste] = 1; }
     });
-    var liste = Object.keys(par).map(function (k) { return par[k]; }).sort(function (a, b) { return (b.tit + b.rem) - (a.tit + a.rem) || a.classe.localeCompare(b.classe); });
+    var liste = Object.keys(par).map(function (k) { return par[k]; })
+      .sort(function (a, b) { return a.classe.localeCompare(b.classe) || a.prenom.localeCompare(b.prenom); });
     if (!liste.length) { t.appendChild(elt("caption", "vide", "Aucun élève inscrit pour l'instant.")); return; }
-    var h = elt("tr"); ["Élève", "Classe", "Code", "Services", "Prochain service", "Postes"].forEach(function (x) { h.appendChild(elt("th", null, x)); });
+    var h = elt("tr"); ["Élève", "Classe", "Code", "Disponibilités", "Services à venir", "Prochain service", ""].forEach(function (x) { h.appendChild(elt("th", null, x)); });
     var th = elt("thead"); th.appendChild(h); t.appendChild(th);
     var tb = elt("tbody");
     liste.forEach(function (o) {
       var tr = elt("tr");
-      tr.appendChild(elt("td", null, o.nom)); tr.appendChild(elt("td", null, o.classe)); tr.appendChild(elt("td", "n code", o.code || "ancien"));
-      tr.appendChild(elt("td", "n", String(o.tit + o.rem)));
-      tr.appendChild(elt("td", null, jourCourt(o.prochain))); tr.appendChild(elt("td", null, Object.keys(o.postes).join(", ")));
+      tr.appendChild(elt("td", null, o.prenom + " " + o.initiale + "."));
+      tr.appendChild(elt("td", null, o.classe));
+      tr.appendChild(elt("td", "n code", o.code || "—"));
+      tr.appendChild(elt("td", "dispos-txt", resumeDispos(o.dispos)));
+      tr.appendChild(elt("td", "n", String(o.services)));
+      tr.appendChild(elt("td", null, o.prochain ? jourCourt(o.prochain) : "—"));
+      var td = elt("td"), act = elt("div", "actions");
+      var bm = elt("button", "mini-btn", "Modifier"); bm.type = "button";
+      var bs = elt("button", "mini-btn danger", "Supprimer"); bs.type = "button";
+      bm.addEventListener("click", function () { editer(tr, o); });
+      bs.addEventListener("click", function () {
+        if (confirm("Supprimer " + o.prenom + " " + o.initiale + ". (" + o.classe + ") : sa fiche et ses " + o.services + " inscription(s) ? C'est définitif."))
+          action("supprimerEleve", { eleve: { prenom: o.prenom, initiale: o.initiale, classe: o.classe } }, "Élève supprimé.");
+      });
+      act.appendChild(bm); act.appendChild(bs); td.appendChild(act); tr.appendChild(td);
       tb.appendChild(tr);
     });
     t.appendChild(tb);
+  }
+
+  function editer(tr, o) {
+    tr.textContent = ""; tr.className = "edit";
+    function champ(val, ph, max) { var td = elt("td"), i = elt("input"); i.value = val; i.placeholder = ph; i.maxLength = max; td.appendChild(i); tr.appendChild(td); return i; }
+    var tdN = elt("td"); var ip = elt("input"); ip.value = o.prenom; ip.placeholder = "Prénom"; ip.maxLength = 30;
+    var ii = elt("input"); ii.value = o.initiale; ii.placeholder = "Initiale"; ii.maxLength = 1; ii.style.marginTop = "4px";
+    tdN.appendChild(ip); tdN.appendChild(ii); tr.appendChild(tdN);
+    var ic = champ(o.classe, "Classe", 12);
+    var ik = champ(o.code, "Code", 4); ik.inputMode = "numeric";
+    tr.appendChild(elt("td", "dispos-txt", resumeDispos(o.dispos)));
+    tr.appendChild(elt("td", "n", String(o.services)));
+    tr.appendChild(elt("td", null, ""));
+    var td = elt("td"), act = elt("div", "actions");
+    var ok = elt("button", "mini-btn", "Enregistrer"); ok.type = "button";
+    var no = elt("button", "mini-btn", "Annuler"); no.type = "button";
+    ok.addEventListener("click", function () {
+      if (!/^\d{4}$/.test(ik.value.trim())) return avis("Le code doit faire 4 chiffres.", true);
+      action("modifierEleve", {
+        ancien: { prenom: o.prenom, initiale: o.initiale, classe: o.classe },
+        nouveau: { prenom: ip.value.trim(), initiale: ii.value.trim(), classe: ic.value.trim(), code: ik.value.trim() }
+      }, "Élève modifié.");
+    });
+    no.addEventListener("click", rendreEleves);
+    act.appendChild(ok); act.appendChild(no); td.appendChild(act); tr.appendChild(td);
+    ip.focus();
   }
 
   $("form-code").addEventListener("submit", function (e) { e.preventDefault(); charger($("code").value.trim()); });
