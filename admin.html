@@ -73,7 +73,7 @@ input:focus-visible, button:focus-visible, select:focus-visible { outline: 3px s
 .chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
 .chip { border-left: 4px solid var(--c); background: var(--surface); border-radius: 6px; padding: 2px 8px; font-size: .84rem; color: var(--bad); }
 .chip b { color: var(--fg); font-weight: 700; }
-.chip-leger { color: var(--warn); }
+.chip-leger { color: var(--warn); background: var(--warn-bg); }
 @media (max-width: 520px) { .manque-jour li { grid-template-columns: 1fr; } }
 .filtres { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .vide { color: var(--muted); margin: 0; }
@@ -92,6 +92,7 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
 .pc-nom { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .n-ok { font-weight: 700; }
 .trou { color: var(--bad); font-weight: 700; }
+.trou.demi { color: var(--warn); }
 .rempl { color: var(--muted); font-size: .8rem; }
 .cell.complet { background: var(--ok-bg); border-radius: 6px; }
 
@@ -144,6 +145,7 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
           </label>
         </div>
         
+        <div class="legende"><span><i class="dot" style="--c:var(--bad)"></i>Poste vide</span><span><i class="dot" style="--c:var(--warn)"></i>Poste à moitié pris</span><span><i class="dot" style="--c:var(--ok)"></i>Poste complet (n'apparaît plus ici)</span></div>
         <div class="manques" id="manques"></div>
       </section>
 
@@ -261,7 +263,8 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
         c.postes.forEach(function (p) {
           var tit = ici.filter(function (i) { return i.poste === p.nom && i.role !== "remplacant"; }).length;
           var rem = ici.filter(function (i) { return i.poste === p.nom && i.role === "remplacant"; }).length;
-          if (tit < p.places) { manques.push({ p: p.nom, txt: (p.places - tit) + " à pourvoir", grave: true }); grave = true; }
+          if (tit === 0) { manques.push({ p: p.nom, txt: p.places + " à pourvoir", grave: true }); grave = true; }
+          else if (tit < p.places) manques.push({ p: p.nom, txt: (p.places - tit) + " à pourvoir", grave: false });
 
         });
         if (manques.length) lignes.push({ cr: cr, manques: manques, grave: grave });
@@ -306,7 +309,7 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
           var b = elt("div", "pc"); b.style.setProperty("--c", couleur(p.nom));
           b.appendChild(elt("span", "pc-nom", p.nom));
           tit.forEach(function (i) { b.appendChild(elt("span", "n-ok", nomEleve(i))); });
-          if (tit.length < p.places) { complet = false; b.appendChild(elt("span", "trou", (p.places - tit.length) + " à pourvoir")); }
+          if (tit.length < p.places) { complet = false; b.appendChild(elt("span", tit.length ? "trou demi" : "trou", (p.places - tit.length) + " à pourvoir")); }
           rem.forEach(function (i) { b.appendChild(elt("span", "rempl", "Remplaçant : " + nomEleve(i))); });
           cell.appendChild(b);
         });

@@ -23,6 +23,8 @@
   --fond1: #e3edfa;       /* pastels des postes */
   --fond2: #fcefcc;
   --fond3: #e0f2e3;
+  --jaune-bg: #fde68a; --jaune-fg: #7a5200;   /* poste à moitié pris */
+  --vert-bg: #86efac;  --vert-fg: #14532d;    /* poste complet */
   --free: #e4ece8;
   --mine: #fff4cc;
   --danger: #a3331f;
@@ -32,12 +34,12 @@
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #141a17; --surface: #1d2521; --fg: #e6ece9; --muted: #9aa8a1; --line: #2e3a34;
-  --accent: #4fbf91; --accent-fg: #0d1512; --poste1: #79a8d6; --poste2: #e0b05a; --poste3: #7fc796; --fond1: #1d2a3a; --fond2: #352d17; --fond3: #1b3324;
+  --accent: #4fbf91; --accent-fg: #0d1512; --poste1: #79a8d6; --poste2: #e0b05a; --poste3: #7fc796; --fond1: #1d2a3a; --fond2: #352d17; --fond3: #1b3324; --jaune-bg: #6b5410; --jaune-fg: #fde68a; --vert-bg: #1f6b3a; --vert-fg: #c6f6d5;
   --free: #24302b; --mine: #3d3516; --danger: #f08a73; color-scheme: dark;
 } }
 :root[data-theme="dark"] {
   --bg: #141a17; --surface: #1d2521; --fg: #e6ece9; --muted: #9aa8a1; --line: #2e3a34;
-  --accent: #4fbf91; --accent-fg: #0d1512; --poste1: #79a8d6; --poste2: #e0b05a; --poste3: #7fc796; --fond1: #1d2a3a; --fond2: #352d17; --fond3: #1b3324;
+  --accent: #4fbf91; --accent-fg: #0d1512; --poste1: #79a8d6; --poste2: #e0b05a; --poste3: #7fc796; --fond1: #1d2a3a; --fond2: #352d17; --fond3: #1b3324; --jaune-bg: #6b5410; --jaune-fg: #fde68a; --vert-bg: #1f6b3a; --vert-fg: #c6f6d5;
   --free: #24302b; --mine: #3d3516; --danger: #f08a73; color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -97,6 +99,9 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .poste-corps { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .poste-nom { font-weight: 700; font-size: .95rem; display: flex; justify-content: space-between; gap: 8px; }
 .poste-nom span { font-family: var(--font-data); font-weight: 500; font-size: .75rem; color: var(--muted); }
+.compteur, .taux { border-radius: 999px; padding: 2px 8px; }
+.compteur.partiel, .taux.partiel { background: var(--jaune-bg); color: var(--jaune-fg); font-weight: 700; }
+.compteur.complet, .taux.complet { background: var(--vert-bg); color: var(--vert-fg); font-weight: 700; }
 .places { display: flex; flex-wrap: wrap; gap: 6px; }
 .place { font: inherit; font-size: .9rem; border-radius: 999px; padding: 5px 12px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); display: inline-flex; align-items: center; gap: 6px; max-width: 100%; }
 .place .classe { color: var(--muted); font-size: .8rem; }
@@ -711,7 +716,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       var bloc = elt("article", "creneau");
       var tete = elt("div", "creneau-tete");
       tete.appendChild(elt("span", "heure", cr.replace("-", " – ")));
-      tete.appendChild(elt("span", "taux", tit + "/" + parCase + " places prises"));
+      tete.appendChild(elt("span", "taux" + (tit >= parCase ? " complet" : tit > 0 ? " partiel" : ""), tit + "/" + parCase + " places prises"));
       bloc.appendChild(tete);
       c.postes.forEach(function (p) {
         var ligne = elt("div", "poste");
@@ -720,7 +725,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
         var titulaires = ici.filter(function (i) { return i.poste === p.nom && i.role !== "remplacant"; });
         var doublures = ici.filter(function (i) { return i.poste === p.nom && i.role === "remplacant"; });
         var nom = elt("div", "poste-nom"); var gauche = elt("div"); gauche.appendChild(iconePoste(p.nom)); gauche.appendChild(document.createTextNode(p.nom)); nom.appendChild(gauche);
-        nom.appendChild(elt("span", null, titulaires.length + "/" + p.places));
+        var etatP = titulaires.length >= p.places ? "compteur complet" : titulaires.length > 0 ? "compteur partiel" : "compteur";
+        nom.appendChild(elt("span", etatP, (titulaires.length >= p.places ? "✓ " : "") + titulaires.length + "/" + p.places));
         corps.appendChild(nom);
         corps.appendChild(rangee(titulaires, p.places, cr, p.nom, "titulaire", dejaLa, moi));
         if (false) { // remplaçants retirés : 2 titulaires par poste suffisent
