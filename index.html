@@ -173,6 +173,18 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .tg-poste small { display: block; color: var(--muted); font-size: .64rem; }
 .tg-poste .moi-tg { font-weight: 700; }
 .tg-libre { color: var(--muted); font-style: italic; }
+.table-global .court { display: none; }
+@media (max-width: 560px) {
+  .global { padding: 12px 8px; }
+  .table-global { table-layout: fixed; width: 100%; min-width: 0; font-size: .86rem; }
+  .table-global th.h { width: 38px; font-size: .68rem; padding: 4px 1px; }
+  .table-global th, .table-global td { padding: 3px 2px; }
+  .table-global .long { display: none; }
+  .table-global .court { display: inline; }
+  .tg-poste { min-width: 0; padding: 3px 3px; font-size: .84rem; line-height: 1.2; overflow-wrap: break-word; }
+  .tg-poste small { font-size: .68rem; font-weight: 700; }
+  .tg-plus { font-size: .74rem; padding: 2px 6px; width: 100%; }
+}
 .tg-plus { display: block; margin-top: 3px; font: inherit; font-size: .72rem; font-weight: 700; color: var(--accent); background: var(--surface); border: 1px dashed var(--accent); border-radius: 999px; padding: 1px 8px; cursor: pointer; }
 .tg-plus:hover { background: var(--accent); color: var(--accent-fg); }
 .tg-plus:disabled { opacity: .5; cursor: default; }
@@ -759,6 +771,13 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     rendreGlobal();
   }
 
+  function libelleCourt(nom) {
+    var n = norm(nom);
+    if (n.indexOf("scan") === 0) return "Scan";
+    if (n.indexOf("pain") === 0) return "Pain-fruits";
+    if (n.indexOf("bio") === 0) return "Bio-emball.";
+    return nom.split(" ")[0];
+  }
   function semainesGlobales() {
     var vues = {}, out = [];
     datesOuvertes(etat.config).filter(function (d) { return d >= etat.aujourdhui; }).forEach(function (d) {
@@ -780,18 +799,22 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     var fin = enDate(sg.lundi); fin.setUTCDate(fin.getUTCDate() + 4);
     $("glob-titre").textContent = "Semaine du " + jourMois(sg.lundi) + " au " + jourMois(enIso(fin));
     var jours = sg.dates;
-    var h = elt("tr"); h.appendChild(elt("th", null, ""));
-    jours.forEach(function (d) { h.appendChild(elt("th", null, NOMS_JOURS[jourDe(d)].slice(0, 3) + ". " + jourMois(d))); });
+    var h = elt("tr"); h.appendChild(elt("th", "h", ""));
+    jours.forEach(function (d) {
+      var thj = elt("th", null, NOMS_JOURS[jourDe(d)].slice(0, 3) + ". " + enDate(d).getUTCDate());
+      thj.appendChild(elt("span", "long", " " + MOIS[enDate(d).getUTCMonth()])); h.appendChild(thj);
+    });
     var th = elt("thead"); th.appendChild(h); t.appendChild(th);
     var tb = elt("tbody");
     c.creneaux.forEach(function (cr) {
-      var tr = elt("tr"); tr.appendChild(elt("th", "h", cr.replace("-", "\n")));
+      var tr = elt("tr"), thh = elt("th", "h", cr.split("-")[0]);
+      thh.appendChild(elt("span", "long", "\n" + (cr.split("-")[1] || ""))); tr.appendChild(thh);
       jours.forEach(function (d) {
         var td = elt("td");
         c.postes.forEach(function (p) {
           var gens = etat.inscriptions.filter(function (i) { return i.date === d && i.creneau === cr && i.poste === p.nom; });
           var b = elt("div", "tg-poste"); b.style.setProperty("--c", couleurPoste(p.nom)); b.style.setProperty("--pbg", fondPoste(p.nom));
-          b.appendChild(elt("small", null, p.nom));
+          var lib = elt("small"); lib.appendChild(elt("span", "long", p.nom)); lib.appendChild(elt("span", "court", libelleCourt(p.nom))); b.appendChild(lib);
           if (!gens.length) b.appendChild(elt("span", "tg-libre", "libre"));
           gens.forEach(function (g, k) {
             var nom = g.mien && etat.moi ? cap(etat.moi.prenom) + " " + etat.moi.initiale.toUpperCase() + ". (toi)"
