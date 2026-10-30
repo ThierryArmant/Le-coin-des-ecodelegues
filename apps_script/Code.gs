@@ -66,6 +66,7 @@ function doPost(e) {
     if (corps.action === 'inscrire') return inscrire(corps);
     if (corps.action === 'retirer') return retirer(corps.id, corps);
     if (corps.action === 'admin') return admin(corps.code);
+    if (corps.action === 'modifierFiche') return modifierFiche(corps.ancien, corps.nouveau);
     throw new Error('Action inconnue.');
   });
 }
@@ -213,6 +214,39 @@ function admin(code) {
       code: /^\d{4}$/.test(i.empreinte) ? i.empreinte : '',
     })),
   };
+}
+
+/**
+ * Un élève corrige sa fiche (prénom, initiale, classe, code) : toutes ses inscriptions suivent.
+ * Il doit fournir son identité actuelle avec le bon code.
+ */
+function modifierFiche(ancien, nouveau) {
+  const verrou = LockService.getScriptLock();
+  verrou.waitLock(20000);
+  try {
+    const a = verifierIdentite_(ancien || {});
+    const n = verifierIdentite_(Object.assign({}, nouveau || {}, { code: (nouveau && nouveau.code) || a.code }));
+    const f = feuille_(ONGLET_INSCRIPTIONS);
+    const valeurs = f.getDataRange().getDisplayValues();
+    const lignes = [];
+    for (let r = 1; r < valeurs.length; r++) {
+      const ligne = { prenom: valeurs[r][6], initiale: valeurs[r][7], classe: valeurs[r][8] };
+      const k = cle_(ligne);
+      if (k === a.cle) {
+        if (!codeOk_(valeurs[r][9], a)) throw new Error('Code incorrect : seule la personne inscrite peut modifier sa fiche.');
+        lignes.push(r + 1);
+      } else if (k === n.cle && !codeOk_(valeurs[r][9], n)) {
+        throw new Error('Ce prénom et cette classe sont déjà utilisés par un autre élève. Ajoute une lettre pour te distinguer ou demande à ton professeur.');
+      }
+    }
+    lignes.forEach(r => f.getRange(r, 7, 1, 4).setValues([[n.prenom, n.initiale, n.classe, "'" + n.code]]));
+    SpreadsheetApp.flush();
+    const sortie = getData(n);
+    sortie.modifiees = lignes.length;
+    return sortie;
+  } finally {
+    verrou.releaseLock();
+  }
 }
 
 /* ---------- Calendrier ---------- */

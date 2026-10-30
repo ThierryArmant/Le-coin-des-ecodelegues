@@ -61,12 +61,13 @@ h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.7rem
 .champs { display: grid; grid-template-columns: 1fr 96px 90px; gap: 10px; }
 .champs .code { grid-column: 1 / -1; }
 @media (min-width: 520px) { .champs { grid-template-columns: 1fr 110px 90px 130px; } .champs .code { grid-column: auto; } }
-label { display: flex; flex-direction: column; gap: 4px; font-size: .8rem; color: var(--muted); font-weight: 700; min-width: 0; }
+label { display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; font-size: .8rem; color: var(--muted); font-weight: 700; min-width: 0; }
 input { font: inherit; font-size: 1rem; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; min-width: 0; }
 input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .aide { font-size: .82rem; color: var(--muted); margin: 0; }
 .resume { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .resume strong { font-size: 1.05rem; }
+.resume-boutons { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn { font: inherit; font-weight: 700; border-radius: 8px; border: 1px solid transparent; padding: 9px 14px; cursor: pointer; }
 .btn-primaire { background: var(--accent); color: var(--accent-fg); }
 .btn-lien { background: none; border-color: var(--line); color: var(--fg); }
@@ -126,6 +127,18 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .hero h1 { color: #fff; text-shadow: 0 2px 14px rgba(0, 0, 0, .35); }
 .hero .lead { color: rgba(255, 255, 255, .9); margin: 4px 0 0; }
 @media (min-width: 700px) { .hero { min-height: 300px; background-image: url("fond-cantine.jpg"); padding: 24px; } }
+
+/* Disponibilités */
+.dispos { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin: 0; min-width: 0; }
+.dispos legend { font-size: .85rem; font-weight: 700; color: var(--fg); padding: 0 4px; }
+.defile-dispos { overflow-x: auto; }
+.grille-dispos { border-collapse: separate; border-spacing: 4px; width: 100%; }
+.grille-dispos th { font-size: .72rem; color: var(--muted); font-weight: 700; font-family: var(--font-data); white-space: nowrap; text-align: center; }
+.grille-dispos th.j { text-align: left; font-family: var(--font-body); font-size: .85rem; color: var(--fg); }
+.dispo { font: inherit; width: 100%; min-width: 44px; height: 36px; border-radius: 8px; border: 1px dashed var(--line); background: var(--bg); color: var(--muted); cursor: pointer; font-size: .8rem; }
+.dispo[aria-pressed="true"] { background: var(--accent); border: 1px solid var(--accent); color: var(--accent-fg); font-weight: 700; }
+.dispo::after { content: ""; }
+.dispo[aria-pressed="true"]::after { content: "✓"; font-size: 1rem; }
 /* Semaines */
 .semaine { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; }
 .semaine b { text-align: center; font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
@@ -196,12 +209,20 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       <label>1re lettre du nom<input id="initiale" maxlength="1" autocomplete="off" placeholder="M" required></label>
       <label>Ta classe<input id="classe" maxlength="12" placeholder="4E2" autocomplete="off" required></label>
       <label class="code">Ton code secret<input id="code" inputmode="numeric" pattern="\d{4}" maxlength="4" placeholder="4 chiffres" autocomplete="off" required></label>
-      <button class="btn btn-primaire" type="submit" style="grid-column:1/-1">C'est moi</button>
+      <fieldset class="dispos" style="grid-column:1/-1">
+        <legend>Quand es-tu libre ? Touche les créneaux où tu n'as pas cours.</legend>
+        <div class="defile-dispos"><table class="grille-dispos" id="grille-dispos"></table></div>
+      </fieldset>
+      <button class="btn btn-primaire" type="submit" id="valider-moi" style="grid-column:1/-1">C'est moi</button>
+      <button class="btn btn-lien" type="button" id="annuler-modif" style="grid-column:1/-1" hidden>Annuler</button>
     </form>
     <p class="aide" id="aide-moi">Exemple : Léa Martin en 4e2 écrit « Léa », « M », « 4E2 ». Invente un code de 4 chiffres et garde-le : il te servira à retrouver tes créneaux.</p>
     <div class="resume" id="resume" hidden>
-      <div><span class="aide">Tu t'inscris en tant que</span><br><strong id="resume-nom"></strong></div>
-      <button class="btn btn-lien" id="changer" type="button">Changer</button>
+      <div><span class="aide">Tu t'inscris en tant que</span><br><strong id="resume-nom"></strong><br><span class="aide" id="resume-dispos"></span></div>
+      <div class="resume-boutons">
+        <button class="btn btn-lien" id="modifier" type="button">Modifier ma fiche</button>
+        <button class="btn btn-lien" id="changer" type="button">Ce n'est pas moi</button>
+      </div>
     </div>
   </section>
 
@@ -219,6 +240,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   </div>
 
   <nav class="jours" id="jours" role="tablist" aria-label="Jours de cantine"></nav>
+
+  <label class="repeter" id="ligne-tout" hidden><input type="checkbox" id="tout-voir"><span>Voir aussi les créneaux où je ne suis pas libre</span></label>
 
   <label class="repeter"><input type="checkbox" id="repeter"><span id="repeter-libelle">Chaque semaine jusqu'en juin</span></label>
 
@@ -256,6 +279,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     if (nom === "getData" && !a) return fetch(ADRESSE_PLANNING + "?action=getData").then(lireReponse);
     if (nom === "getData") return poster(Object.assign({ action: "getData" }, a));
     if (nom === "inscrire") return poster(Object.assign({ action: "inscrire" }, a));
+    if (nom === "modifierFiche") return poster({ action: "modifierFiche", ancien: a, nouveau: b });
     return poster(Object.assign({ action: "retirer", id: a }, b));
   }
 
@@ -322,6 +346,11 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
         if (!ajoutees.length) return Promise.reject(new Error("Place indisponible : le poste est complet ou tu as déjà un poste sur ce créneau."));
         var r = donnees(d); r.ajoutees = ajoutees; r.sautees = sautees; return Promise.resolve(r);
       },
+      modifierFiche: function (ancien, nouveau) {
+        var nb = 0;
+        liste.forEach(function (i) { if (cle(i) === cle(ancien) && i.code === ancien.code) { i.prenom = nouveau.prenom; i.initiale = nouveau.initiale; i.classe = nouveau.classe; i.code = nouveau.code; nb++; } });
+        var r = donnees(nouveau); r.modifiees = nb; return Promise.resolve(r);
+      },
       retirer: function (id, ident) {
         var i = liste.findIndex(function (x) { return x.id === id; });
         if (i < 0) return Promise.reject(new Error("Cette inscription n'existe plus."));
@@ -350,26 +379,101 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   }
   function messageErreur(e) { return (e && e.message ? e.message : String(e)).replace(/^Error:\s*/, "").replace(/^Exception:\s*/, ""); }
 
+  /* ---- Disponibilités ---- */
+  function cleDispo(jour, cr) { return jour + "|" + cr; }
+  function aDesDispos() { return !!(etat.moi && etat.moi.dispos && etat.moi.dispos.length); }
+  function libreLe(date, cr) {
+    if (!aDesDispos() || etat.toutVoir) return true;
+    return etat.moi.dispos.indexOf(cleDispo(NOMS_JOURS[jourDe(date)], cr)) >= 0;
+  }
+  function jourLibre(date) {
+    if (!aDesDispos() || etat.toutVoir) return true;
+    var j = NOMS_JOURS[jourDe(date)];
+    return etat.moi.dispos.some(function (k) { return k.indexOf(j + "|") === 0; });
+  }
+  function construireGrilleDispos(choisies) {
+    var c = etat.config, t = $("grille-dispos"); if (!c) return;
+    t.textContent = "";
+    var h = elt("tr"); h.appendChild(elt("th", null, ""));
+    c.creneaux.forEach(function (cr) { h.appendChild(elt("th", null, cr.split("-")[0])); });
+    t.appendChild(h);
+    c.jours.forEach(function (j) {
+      var tr = elt("tr"); tr.appendChild(elt("th", "j", j));
+      c.creneaux.forEach(function (cr) {
+        var td = elt("td"), b = elt("button", "dispo"); b.type = "button";
+        b.dataset.cle = cleDispo(j, cr);
+        b.setAttribute("aria-pressed", choisies.indexOf(b.dataset.cle) >= 0 ? "true" : "false");
+        b.setAttribute("aria-label", j + " " + cr);
+        b.addEventListener("click", function () { b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" ? "false" : "true"); });
+        td.appendChild(b); tr.appendChild(td);
+      });
+      t.appendChild(tr);
+    });
+  }
+  function lireGrilleDispos() {
+    return Array.prototype.map.call(document.querySelectorAll("#grille-dispos .dispo[aria-pressed='true']"), function (b) { return b.dataset.cle; });
+  }
+  function resumeDispos(d) {
+    if (!d || !d.length) return "Disponibilités : tous les créneaux";
+    var c = etat.config, parJour = [];
+    (c ? c.jours : []).forEach(function (j) {
+      var h = d.filter(function (k) { return k.indexOf(j + "|") === 0; }).map(function (k) { return k.split("|")[1].split("-")[0]; });
+      if (h.length) parJour.push(j.slice(0, 3).toLowerCase() + ". " + h.join(", "));
+    });
+    return "Libre : " + parJour.join(" · ");
+  }
+  $("tout-voir").addEventListener("change", function () { etat.toutVoir = this.checked; etat.date = null; construireSemaines(); rendre(); });
+
   /* ---- Identité ---- */
   function afficherMoi() {
     var m = etat.moi;
     $("form-moi").hidden = !!m; $("aide-moi").hidden = !!m; $("resume").hidden = !m; $("moi-titre").hidden = !!m;
-    if (m) $("resume-nom").textContent = cap(m.prenom) + " " + m.initiale.toUpperCase() + ". · " + m.classe.toUpperCase();
+    $("annuler-modif").hidden = true;
+    if (!m) { $("moi-titre").textContent = "Qui es-tu ?"; $("valider-moi").textContent = "C'est moi"; }
+    if (m) { $("resume-nom").textContent = cap(m.prenom) + " " + m.initiale.toUpperCase() + ". · " + m.classe.toUpperCase(); $("resume-dispos").textContent = resumeDispos(m.dispos); }
+    $("ligne-tout").hidden = !aDesDispos();
+  }
+  function ouvrirFormulaire(modif) {
+    etat.modif = modif;
+    var m = etat.moi || {};
+    $("prenom").value = modif ? cap(m.prenom || "") : ""; $("initiale").value = modif ? (m.initiale || "").toUpperCase() : "";
+    $("classe").value = modif ? (m.classe || "").toUpperCase() : ""; $("code").value = modif ? (m.code || "") : "";
+    $("moi-titre").textContent = modif ? "Corrige ta fiche" : "Qui es-tu ?";
+    $("valider-moi").textContent = modif ? "Enregistrer la correction" : "C'est moi";
+    $("annuler-modif").hidden = !modif;
+    construireGrilleDispos(modif && m.dispos ? m.dispos : []);
+    $("form-moi").hidden = false; $("aide-moi").hidden = false; $("resume").hidden = true; $("moi-titre").hidden = false;
+    $("prenom").focus();
   }
   $("form-moi").addEventListener("submit", function (ev) {
     ev.preventDefault();
     var m = { prenom: $("prenom").value.trim(), initiale: $("initiale").value.trim().charAt(0), classe: $("classe").value.trim(), code: $("code").value.trim() };
     if (m.prenom.length < 2) return toast("Indique ton prénom.", true);
-    if (!/^[a-zà-ý]$/i.test(m.initiale)) return toast("Indique l'initiale de ton nom.", true);
+    if (!/^[a-zà-ý]$/i.test(m.initiale)) return toast("Indique la 1re lettre de ton nom.", true);
     if (m.classe.length < 2) return toast("Indique ta classe, par exemple 4E2.", true);
     if (!/^\d{4}$/.test(m.code)) return toast("Ton code doit faire 4 chiffres.", true);
-    etat.moi = m; ecrireMoi(m); afficherMoi(); charger();
-    toast("Choisis maintenant une place libre.");
+    m.dispos = lireGrilleDispos();
+    if (!m.dispos.length) return toast("Touche au moins un créneau où tu es libre.", true);
+    if (etat.modif && etat.moi) {
+      var ancien = etat.moi;
+      if (cle(ancien) === cle(m) && ancien.code === m.code) {
+        etat.moi = m; ecrireMoi(m); etat.modif = false; afficherMoi(); etat.date = null; construireSemaines(); rendre();
+        toast("Disponibilités mises à jour."); return;
+      }
+      appel("modifierFiche", ancien, m).then(function (r) {
+        etat.moi = m; ecrireMoi(m); etat.modif = false; afficherMoi(); etat.date = null;
+        appliquer(r); etat.codeRefuse = !!r.codeRefuse; rendre();
+        toast(r.modifiees ? "Fiche corrigée : " + r.modifiees + " créneau" + (r.modifiees > 1 ? "x mis" : " mis") + " à jour." : "Fiche corrigée.");
+      }).catch(function (e) { toast(messageErreur(e), true); });
+      return;
+    }
+    etat.moi = m; ecrireMoi(m); afficherMoi(); etat.date = null; charger();
+    toast("Voici les créneaux où tu es libre. Choisis une place.");
   });
+  $("modifier").addEventListener("click", function () { ouvrirFormulaire(true); });
+  $("annuler-modif").addEventListener("click", function () { etat.modif = false; afficherMoi(); });
   $("changer").addEventListener("click", function () {
-    var m = etat.moi || {};
-    $("prenom").value = m.prenom || ""; $("initiale").value = m.initiale || ""; $("classe").value = m.classe || ""; $("code").value = "";
-    etat.moi = null; ecrireMoi(null); afficherMoi(); charger(); $("prenom").focus();
+    etat.moi = null; ecrireMoi(null); etat.codeRefuse = false; afficherMoi(); ouvrirFormulaire(false); charger();
   });
   $("repeter").addEventListener("change", function () { etat.repeter = this.checked; });
 
@@ -425,7 +529,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 
   /* ---- Semaines ---- */
   function construireSemaines() {
-    var dates = datesOuvertes(etat.config).filter(function (d) { return d >= etat.aujourdhui; });
+    var dates = datesOuvertes(etat.config).filter(function (d) { return d >= etat.aujourdhui && jourLibre(d); });
     var semaines = [], parLundi = {};
     dates.forEach(function (d) {
       var l = lundiDe(d);
@@ -450,7 +554,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     else ban.hidden = true;
 
     var sem = etat.semaines[etat.semaine];
-    if (!sem) { $("creneaux").textContent = "Aucune date ouverte pour le moment."; return; }
+    if (!sem) { $("creneaux").textContent = aDesDispos() ? "Aucune date ne correspond à tes disponibilités. Touche « Modifier ma fiche » pour en ajouter." : "Aucune date ouverte pour le moment."; return; }
     var parCase = c.postes.reduce(function (a, p) { return a + p.places; }, 0);
 
     // Légende
@@ -458,8 +562,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     c.postes.forEach(function (p) { var s = elt("span"); s.appendChild(iconePoste(p.nom)); s.appendChild(document.createTextNode(p.nom)); lg.appendChild(s); });
 
     // Navigation de semaine
-    var d0 = sem.dates[0], d1 = sem.dates[sem.dates.length - 1];
-    $("sem-titre").textContent = "Semaine du " + jourMois(d0) + " au " + jourMois(d1);
+    var dl = enDate(sem.lundi); dl.setUTCDate(dl.getUTCDate() + 4);
+    $("sem-titre").textContent = "Semaine du " + jourMois(sem.lundi) + " au " + jourMois(enIso(dl));
     $("sem-prec").disabled = etat.semaine === 0;
     $("sem-suiv").disabled = etat.semaine >= etat.semaines.length - 1;
 
@@ -496,6 +600,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     c.creneaux.forEach(function (cr) {
       var ici = etat.inscriptions.filter(function (i) { return i.date === etat.date && i.creneau === cr; });
       var dejaLa = ici.some(function (i) { return i.mien; });
+      if (!libreLe(etat.date, cr) && !dejaLa) return;
       var tit = ici.filter(function (i) { return i.role !== "remplacant"; }).length;
       var bloc = elt("article", "creneau");
       var tete = elt("div", "creneau-tete");
@@ -556,7 +661,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   function rendreMes() {
     var mes = $("mes"); mes.textContent = "";
     if (!etat.moi) { mes.appendChild(elt("p", "vide", "Remplis « Qui es-tu ? » pour voir tes créneaux ici.")); return; }
-    if (etat.codeRefuse) { mes.appendChild(elt("p", "alerte", "Ce prénom et cette classe sont déjà inscrits avec un autre code. Touche « Changer » et tape ton code habituel. Si tu l'as oublié, demande-le à ton professeur.")); return; }
+    if (etat.codeRefuse) { mes.appendChild(elt("p", "alerte", "Ce prénom et cette classe sont déjà inscrits avec un autre code. Touche « Modifier ma fiche » pour corriger ton code, ou « Ce n'est pas moi ». Si tu l'as oublié, demande-le à ton professeur.")); return; }
     var miens = mesAVenir();
     if (!miens.length) { mes.appendChild(elt("p", "vide", "Aucun créneau pour l'instant. Touche « + Je prends » sur une place libre.")); return; }
     var r = rang(miens.length);
@@ -612,14 +717,17 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       .then(function () { etat.occupe = false; rendre(); });
   }
   function appliquer(r) {
+    var premiere = !etat.config;
     etat.config = r.config; etat.inscriptions = r.inscriptions; if (r.aujourdhui) etat.aujourdhui = r.aujourdhui;
+    if (premiere && !$("form-moi").hidden) construireGrilleDispos(lireGrilleDispos());
+    if (premiere && etat.moi) $("resume-dispos").textContent = resumeDispos(etat.moi.dispos);
     construireSemaines();
   }
   function charger() {
     return appel("getData", etat.moi).then(function (r) {
       appliquer(r); rendre();
       etat.codeRefuse = !!r.codeRefuse; rendreMes();
-      if (r.codeRefuse) toast("Code incorrect pour ce prénom et cette classe. Touche « Changer » pour corriger.", true);
+      if (r.codeRefuse) toast("Code incorrect pour ce prénom et cette classe. Touche « Modifier ma fiche » pour corriger.", true);
     }).catch(function (e) { $("creneaux").textContent = "Impossible de charger le planning : " + messageErreur(e); });
   }
 
