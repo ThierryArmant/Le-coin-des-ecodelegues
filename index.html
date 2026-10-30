@@ -174,7 +174,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .tg-poste .moi-tg { font-weight: 700; }
 .tg-libre { color: var(--muted); font-style: italic; }
 .table-global .court { display: none; }
-@media (max-width: 560px) {
+/* Tableau global : version compacte jusqu'à 900 px de large, pour qu'il tienne toujours en entier */
+@media (max-width: 900px) {
   .global { padding: 12px 8px; }
   .table-global { table-layout: fixed; width: 100%; min-width: 0; font-size: .86rem; }
   .table-global th.h { width: 38px; font-size: .68rem; padding: 4px 1px; }
