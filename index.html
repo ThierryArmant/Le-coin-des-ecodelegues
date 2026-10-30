@@ -916,7 +916,10 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     var d = { date: laDate, creneau: creneau, poste: poste, role: role, repeter: repeter, jusqua: finDuMois(laDate),
               prenom: etat.moi.prenom, initiale: etat.moi.initiale, classe: etat.moi.classe, code: etat.moi.code };
     appel("inscrire", d).then(function (r) {
+      var ancre = $(dateChoisie ? "global" : "creneaux"), avant = ancre.getBoundingClientRect().top;
       appliquer(r); etat.occupe = false; etat.enCours = null; $("toast").hidden = true; etat.repeter = false; $("repeter").checked = false; rendre();
+      // Garde à l'écran la zone où l'élève vient de toucher, même si « Mes créneaux » s'est allongé au-dessus
+      window.scrollBy(0, ancre.getBoundingClientRect().top - avant);
       bravo(creneau, poste, role, r.ajoutees || [d.date], r.sautees || []);
     }).catch(function (e) {
       etat.enCours = null; toast(messageErreur(e), true); etat.occupe = false; return charger();
