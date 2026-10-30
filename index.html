@@ -118,6 +118,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .mes li { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .mes .heure { font-size: .9rem; }
 .vide { color: var(--muted); font-size: .9rem; margin: 0; }
+.grade { color: var(--muted); font-size: .82rem; margin: 10px 0 0; }
 .pied { text-align: center; font-size: .82rem; padding-top: 8px; }
 .pied a { color: var(--muted); }
 .alerte { color: var(--danger); font-weight: 700; font-size: .92rem; margin: 0; }
@@ -196,7 +197,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .poste-nom > div { display: inline-flex; align-items: center; gap: 7px; }
 
 /* Badge */
-.badge { display: inline-flex; align-items: center; gap: 8px; background: var(--mine); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px 5px 6px; font-weight: 700; font-size: .9rem; margin-bottom: 10px; }
+.badge { display: inline-flex; align-items: center; gap: 8px; background: var(--mine); border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px; font-weight: 700; font-size: .9rem; margin-bottom: 10px; }
 .badge-rond { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-fg); display: grid; place-items: center; font-family: var(--font-data); font-size: .8rem; }
 .badge small { font-weight: 400; color: var(--muted); }
 
@@ -811,17 +812,14 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     if (!etat.moi) return;
     if (etat.codeRefuse) { mes.appendChild(elt("p", "alerte", "Ce prénom et cette classe sont déjà inscrits avec un autre code. Touche « Modifier ma fiche » pour corriger ton code, ou « Ce n'est pas moi ». Si tu l'as oublié, demande-le à ton professeur.")); return; }
     var miens = mesAVenir();
+    $("mes-titre").hidden = miens.length > 0;
     if (!miens.length) { mes.appendChild(elt("p", "vide", "Aucun créneau pour l'instant. Touche « + Je prends » sur une place libre.")); return; }
     var r = rang(miens.length);
-    if (r) {
-      var b = elt("div", "badge");
-      b.appendChild(elt("span", "badge-rond", String(miens.length)));
-      b.appendChild(elt("span", null, r.nom));
-      b.appendChild(elt("small", null, miens.length > 1 ? "services à venir" : "service à venir"));
-      mes.appendChild(b);
-    }
+    var b = elt("div", "badge");
+    b.appendChild(elt("span", null, "Mes créneaux"));
+    mes.appendChild(b);
     var ul = elt("ul");
-    var max = 8;
+    var max = 1000; // tous les créneaux de l'élève, sans troncature
     miens.slice(0, max).forEach(function (i) {
       var li = elt("li");
       var d = elt("i", "dot"); d.style.setProperty("--c", couleurPoste(i.poste)); li.appendChild(d);
@@ -834,6 +832,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       ul.appendChild(li);
     });
     mes.appendChild(ul);
+    if (r) mes.appendChild(elt("p", "grade", "Grade : " + r.nom));
     if (miens.length > max) mes.appendChild(elt("p", "vide", "Et " + (miens.length - max) + " autres services jusqu'au " + jourMois(miens[miens.length - 1].date).replace(/\.$/, "") + "."));
   }
 
