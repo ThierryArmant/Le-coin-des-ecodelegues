@@ -210,8 +210,14 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     <div class="barre" id="barre"></div>
   </section>
 
+  <section class="etape" id="etape" hidden>
+    <b id="etape-titre">Pour commencer</b>
+    <p id="etape-texte"></p>
+    <button class="btn btn-primaire" type="button" id="etape-bouton" hidden>Indiquer mes disponibilités</button>
+  </section>
+
   <section class="moi" id="moi" aria-labelledby="moi-titre">
-    <h2 id="moi-titre">Qui es-tu ?</h2>
+    <h2 id="moi-titre">Ma fiche éco-délégué</h2>
     <form id="form-moi" class="champs" novalidate>
       <label>Ton prénom<input id="prenom" autocomplete="given-name" maxlength="30" placeholder="Léa" required></label>
       <label>1re lettre du nom<input id="initiale" maxlength="1" autocomplete="off" placeholder="M" required></label>
@@ -221,7 +227,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
         <legend>Quand es-tu libre ? Touche les créneaux où tu n'as pas cours.</legend>
         <div class="defile-dispos"><table class="grille-dispos" id="grille-dispos"></table></div>
       </fieldset>
-      <button class="btn btn-primaire" type="submit" id="valider-moi" style="grid-column:1/-1">C'est moi</button>
+      <button class="btn btn-primaire" type="submit" id="valider-moi" style="grid-column:1/-1">Enregistrer ma fiche</button>
       <button class="btn btn-lien" type="button" id="annuler-modif" style="grid-column:1/-1" hidden>Annuler</button>
     </form>
     <p class="aide" id="aide-moi">Exemple : Léa Martin en 4e2 écrit « Léa », « M », « 4E2 ». Invente un code de 4 chiffres et garde-le : il te servira à retrouver tes créneaux.</p>
@@ -239,11 +245,6 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     <div id="mes"></div>
   </section>
 
-  <section class="etape" id="etape" hidden>
-    <b id="etape-titre">Première étape</b>
-    <p id="etape-texte"></p>
-    <button class="btn btn-primaire" type="button" id="etape-bouton" hidden>Indiquer mes disponibilités</button>
-  </section>
 
   <div class="zone-planning" id="zone-planning">
   <div class="legend" id="legende"></div>
@@ -446,7 +447,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     var m = etat.moi;
     $("form-moi").hidden = !!m; $("aide-moi").hidden = !!m; $("resume").hidden = !m; $("moi-titre").hidden = !!m;
     $("annuler-modif").hidden = true;
-    if (!m) { $("moi-titre").textContent = "Qui es-tu ?"; $("valider-moi").textContent = "C'est moi"; }
+    if (!m) { $("moi-titre").textContent = "Ma fiche éco-délégué"; $("valider-moi").textContent = "Enregistrer ma fiche"; }
     if (m) { $("resume-nom").textContent = cap(m.prenom) + " " + m.initiale.toUpperCase() + ". · " + m.classe.toUpperCase(); $("resume-dispos").textContent = resumeDispos(m.dispos); }
     $("ligne-tout").hidden = !aDesDispos();
   }
@@ -455,8 +456,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     var m = etat.moi || {};
     $("prenom").value = modif ? cap(m.prenom || "") : ""; $("initiale").value = modif ? (m.initiale || "").toUpperCase() : "";
     $("classe").value = modif ? (m.classe || "").toUpperCase() : ""; $("code").value = modif ? (m.code || "") : "";
-    $("moi-titre").textContent = modif ? "Corrige ta fiche" : "Qui es-tu ?";
-    $("valider-moi").textContent = modif ? "Enregistrer la correction" : "C'est moi";
+    $("moi-titre").textContent = modif ? "Corrige ta fiche éco-délégué" : "Ma fiche éco-délégué";
+    $("valider-moi").textContent = modif ? "Enregistrer la correction" : "Enregistrer ma fiche";
     $("annuler-modif").hidden = !modif;
     construireGrilleDispos(modif && m.dispos ? m.dispos : []);
     $("form-moi").hidden = false; $("aide-moi").hidden = false; $("resume").hidden = true; $("moi-titre").hidden = false;
@@ -577,12 +578,12 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 
     // Pas de planning tant que l'élève n'a pas dit qui il est et quand il est libre
     var pret = aDesDispos();
-    $("zone-planning").hidden = !pret; $("etape").hidden = pret;
+    $("zone-planning").hidden = !pret; $("etape").hidden = pret; document.querySelector(".jauge").hidden = !pret;
     if (!pret) {
-      $("etape-titre").textContent = etat.moi ? "Dernière étape" : "Première étape";
+      $("etape-titre").textContent = etat.moi ? "Dernière étape" : "Pour commencer";
       $("etape-texte").textContent = etat.moi
-        ? "Indique quand tu es libre : le planning n'affichera que ces créneaux."
-        : "Remplis « Qui es-tu ? » et touche les créneaux où tu es libre. Ton planning s'affichera ensuite.";
+        ? "Indique tes disponibilités pour faire apparaître les plannings qui te concernent."
+        : "Complète ta fiche (prénom, 1re lettre du nom, classe) ainsi que tes disponibilités pour faire apparaître les plannings concernés.";
       $("etape-bouton").hidden = !etat.moi || !$("form-moi").hidden;
       rendreMes();
       return;
@@ -694,7 +695,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 
   function rendreMes() {
     var mes = $("mes"); mes.textContent = "";
-    if (!etat.moi) { mes.appendChild(elt("p", "vide", "Remplis « Qui es-tu ? » pour voir tes créneaux ici.")); return; }
+    document.querySelector(".mes").hidden = !etat.moi;
+    if (!etat.moi) return;
     if (etat.codeRefuse) { mes.appendChild(elt("p", "alerte", "Ce prénom et cette classe sont déjà inscrits avec un autre code. Touche « Modifier ma fiche » pour corriger ton code, ou « Ce n'est pas moi ». Si tu l'as oublié, demande-le à ton professeur.")); return; }
     var miens = mesAVenir();
     if (!miens.length) { mes.appendChild(elt("p", "vide", "Aucun créneau pour l'instant. Touche « + Je prends » sur une place libre.")); return; }
@@ -726,7 +728,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   /* ---- Actions ---- */
   function exiger() {
     if (etat.moi) return true;
-    toast("Commence par « Qui es-tu ? ».", true);
+    toast("Commence par remplir ta fiche éco-délégué.", true);
     $("prenom").focus(); return false;
   }
   function inscrire(creneau, poste, role) {
