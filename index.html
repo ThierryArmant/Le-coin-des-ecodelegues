@@ -506,7 +506,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     return Array.prototype.map.call(document.querySelectorAll("#grille-dispos .dispo[aria-pressed='true']"), function (b) { return b.dataset.cle; });
   }
   function resumeDispos(d) {
-    if (!d || !d.length) return "Disponibilités : tous les créneaux";
+    if (!d || !d.length) return "Disponibilités : à indiquer";
     var c = etat.config, parJour = [];
     (c ? c.jours : []).forEach(function (j) {
       var h = d.filter(function (k) { return k.indexOf(j + "|") === 0; }).map(function (k) { return k.split("|")[1].split("-")[0]; });
