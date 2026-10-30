@@ -164,6 +164,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .global { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
 .global h2 { font-family: var(--font-display); font-size: 1.1rem; margin: 0 0 4px; font-weight: 600; }
 .global .aide { margin: 0 0 8px; }
+.global { display: flex; flex-direction: column; gap: 12px; }
+.global .jauge { border: 0; padding: 0; }
 
 .defile-global { overflow-x: auto; margin-top: 8px; }
 .table-global { border-collapse: collapse; font-size: .82rem; min-width: 100%; }
@@ -245,16 +247,12 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   <div class="hero-texte">
     <div class="eyebrow">Collège Jean Giono · cantine</div>
     <h1 id="titre">Responsables tables de tri</h1>
-    <p class="lead">Choisis un poste sur les créneaux où tu es libre. Une fois ta fiche remplie, tu vois qui est inscrit pour te placer avec tes camarades.</p>
+    <p class="lead">Remplis ta fiche, repère tes camarades dans le planning et choisis tes créneaux avec eux.</p>
   </div>
   </header>
 
   <div class="banner" id="banniere" hidden></div>
 
-  <section class="jauge" aria-label="Remplissage de la semaine affichée">
-    <div class="jauge-haut"><b id="jauge-titre">Responsables tables de tri</b><span id="jauge-chiffres"></span></div>
-    <div class="barre" id="barre"></div>
-  </section>
 
   <section class="etape" id="etape" hidden>
     <b id="etape-titre">Pour commencer</b>
@@ -269,7 +267,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       <label>1re lettre du nom<input id="initiale" maxlength="1" autocomplete="off" placeholder="M" required></label>
       <label>Ta classe<input id="classe" maxlength="12" placeholder="4E2" autocomplete="off" required></label>
       <label class="code">Ton code secret<input id="code" inputmode="numeric" pattern="\d{4}" maxlength="4" placeholder="4 chiffres" autocomplete="off" required></label>
-      <fieldset class="dispos" id="bloc-dispos" style="grid-column:1/-1">
+      <fieldset class="dispos" id="bloc-dispos" style="grid-column:1/-1" hidden>
         <legend>Quand es-tu libre ? Touche les créneaux où tu n'as pas cours.</legend>
         <div class="defile-dispos"><table class="grille-dispos" id="grille-dispos"></table></div>
       </fieldset>
@@ -279,7 +277,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     </form>
     <p class="aide" id="aide-moi">Exemple : Léa Martin en 4e2 écrit « Léa », « M », « 4E2 ». Invente un code de 4 chiffres et garde-le : il te servira à retrouver tes créneaux.</p>
     <div class="resume" id="resume" hidden>
-      <div><span class="aide">Tu t'inscris en tant que</span><br><strong id="resume-nom"></strong><br><span class="aide" id="resume-dispos"></span></div>
+      <div><span class="aide">Tu t'inscris en tant que</span><br><strong id="resume-nom"></strong><br><span class="aide" id="resume-dispos" hidden></span></div>
       <div class="resume-boutons">
         <button class="btn btn-lien" id="modifier" type="button">Modifier ma fiche</button>
         <button class="btn btn-lien" id="changer" type="button">Ce n'est pas moi</button>
@@ -294,18 +292,23 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 
 
   <section class="global" id="global" hidden>
-    <h2>Qui fait quoi ?</h2>
-    <p class="aide">Toute la semaine, tous les postes : repère tes camarades pour te placer avec eux.</p>
+    <h2>Le planning : qui fait quoi ?</h2>
+    <p class="aide">Repère tes camarades et touche « + Moi » sur une place libre pour t'inscrire avec eux.</p>
     <div class="semaine semaine-global">
       <button class="sem-btn" id="glob-prec" type="button" aria-label="Semaine précédente">‹</button>
       <b id="glob-titre">Semaine</b>
       <button class="sem-btn" id="glob-suiv" type="button" aria-label="Semaine suivante">›</button>
     </div>
+  <div class="jauge" aria-label="Remplissage de la semaine affichée">
+    <div class="jauge-haut"><b id="jauge-titre">Responsables tables de tri</b><span id="jauge-chiffres"></span></div>
+    <div class="barre" id="barre"></div>
+  </div>
+    <div class="legend" id="legende"></div>
+    <label class="repeter"><input type="checkbox" id="repeter"><span id="repeter-libelle">Quand je touche « + Moi », m'inscrire aussi le même jour les semaines suivantes, jusqu'à la fin du mois</span></label>
     <div class="defile-global"><table class="table-global" id="table-global"></table></div>
   </section>
 
   <div class="zone-planning" id="zone-planning">
-  <div class="legend" id="legende"></div>
 
   <div class="semaine">
     <button class="sem-btn" id="sem-prec" type="button" aria-label="Semaine précédente">‹</button>
@@ -317,7 +320,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 
   <label class="repeter" id="ligne-tout" hidden><input type="checkbox" id="tout-voir"><span>Voir aussi les créneaux où je ne suis pas libre</span></label>
 
-  <label class="repeter"><input type="checkbox" id="repeter"><span id="repeter-libelle">Chaque semaine jusqu'en juin</span></label>
+
 
   <section class="creneaux" id="creneaux" aria-live="polite"><p class="chargement">Chargement du planning…</p></section>
 
@@ -541,7 +544,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   }
   function modeRetrouver(oui) {
     etat.retrouver = oui;
-    $("bloc-dispos").hidden = oui;
+    $("bloc-dispos").hidden = true;
     $("moi-titre").textContent = oui ? "Retrouver ma fiche éco-délégué" : (etat.modif ? "Corrige ta fiche éco-délégué" : "Ma fiche éco-délégué");
     $("valider-moi").textContent = oui ? "Retrouver ma fiche" : (etat.modif ? "Enregistrer la correction" : "Enregistrer ma fiche");
     $("mode-retrouver").textContent = oui ? "Je n'ai pas encore de fiche : la créer" : "J'ai déjà une fiche : la retrouver";
@@ -570,14 +573,13 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       }).catch(function (e) { toast(messageErreur(e), true); });
       return;
     }
-    m.dispos = lireGrilleDispos();
-    if (!m.dispos.length) return toast("Touche au moins un créneau où tu es libre.", true);
+    m.dispos = (etat.moi && etat.moi.dispos) || [];
     if (etat.modif && etat.moi) {
       var ancien = etat.moi;
       if (cle(ancien) === cle(m) && ancien.code === m.code) {
         appel("enregistrerFiche", m).then(function (r) {
           etat.moi = m; ecrireMoi(m); etat.modif = false; afficherMoi(); etat.date = null; appliquer(r); rendre();
-          toast("Disponibilités mises à jour.");
+          toast("Fiche mise à jour.");
         }).catch(function (e) { toast(messageErreur(e), true); });
         return;
       }
@@ -590,7 +592,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     }
     appel("enregistrerFiche", m).then(function (r) {
       etat.moi = m; ecrireMoi(m); afficherMoi(); etat.date = null; appliquer(r); etat.codeRefuse = false; rendre();
-      toast("Fiche enregistrée. Voici les créneaux où tu es libre.");
+      toast("Fiche enregistrée. Choisis tes créneaux dans le planning.");
     }).catch(function (e) { toast(messageErreur(e), true); });
   });
   $("modifier").addEventListener("click", function () { ouvrirFormulaire(true); });
@@ -680,18 +682,21 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     else ban.hidden = true;
 
     // Pas de planning tant que l'élève n'a pas dit qui il est et quand il est libre
-    var pret = aDesDispos();
-    $("zone-planning").hidden = !pret; $("etape").hidden = pret; document.querySelector(".jauge").hidden = !pret;
-    if (!pret) {
-      $("etape-titre").textContent = etat.moi ? "Dernière étape" : "Pour commencer";
-      $("etape-texte").textContent = etat.moi
-        ? "Indique tes disponibilités pour faire apparaître les plannings qui te concernent."
-        : "Complète ta fiche (prénom, 1re lettre du nom, classe) ainsi que tes disponibilités pour faire apparaître les plannings concernés.";
-      $("etape-bouton").hidden = !etat.moi || !$("form-moi").hidden;
-      rendreMes();
-      rendreGlobal();
-      return;
+    // Le planning unique est « Qui fait quoi ? » ; la liste jour par jour n'est plus affichée
+    $("zone-planning").hidden = true;
+    $("etape").hidden = !!etat.moi;
+    if (!etat.moi) {
+      $("etape-titre").textContent = "Pour commencer";
+      $("etape-texte").textContent = "Complète ta fiche (prénom, 1re lettre du nom, classe) pour faire apparaître le planning.";
+      $("etape-bouton").hidden = true;
     }
+    // Légende des postes
+    var lg0 = $("legende"); lg0.textContent = "";
+    c.postes.forEach(function (p) { var sp = elt("span"); sp.style.background = fondPoste(p.nom); sp.appendChild(iconePoste(p.nom)); sp.appendChild(document.createTextNode(p.nom)); lg0.appendChild(sp); });
+    lg0.appendChild(elt("em", "legende-note", "Chaque poste est doublé : 2 élèves, en cas d'absence ou de besoin."));
+    rendreMes();
+    rendreGlobal();
+    return;
     var sem = etat.semaines[etat.semaine];
     if (!sem) { $("creneaux").textContent = aDesDispos() ? "Aucune date ne correspond à tes disponibilités. Touche « Modifier ma fiche » pour en ajouter." : "Aucune date ouverte pour le moment."; return; }
     var parCase = c.postes.reduce(function (a, p) { return a + p.places; }, 0);
@@ -802,6 +807,17 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     var fin = enDate(sg.lundi); fin.setUTCDate(fin.getUTCDate() + 4);
     $("glob-titre").textContent = "Semaine du " + jourMois(sg.lundi) + " au " + jourMois(enIso(fin));
     var jours = sg.dates;
+    var parCaseG = c.postes.reduce(function (a, p) { return a + p.places; }, 0), totalSem = parCaseG * c.creneaux.length * jours.length;
+    var dela = etat.inscriptions.filter(function (i) { return jours.indexOf(i.date) >= 0 && i.role !== "remplacant"; });
+    var pct = totalSem ? Math.round(dela.length / totalSem * 100) : 0;
+    $("jauge-titre").textContent = pct >= 100 ? "Tables de tri au complet cette semaine" : pct >= 50 ? "Les tables de tri se remplissent" : "On cherche des responsables tables de tri";
+    $("jauge-chiffres").textContent = dela.length + " / " + totalSem + " places · " + pct + " %";
+    var barre = $("barre"); barre.textContent = "";
+    c.postes.forEach(function (p) {
+      var n = dela.filter(function (i) { return i.poste === p.nom; }).length;
+      var seg = elt("i"); seg.style.setProperty("--c", couleurPoste(p.nom)); seg.style.width = (totalSem ? n / totalSem * 100 : 0) + "%"; seg.title = p.nom + " : " + n;
+      barre.appendChild(seg);
+    });
     var h = elt("tr"); h.appendChild(elt("th", "h", ""));
     jours.forEach(function (d) {
       var thj = elt("th", null, NOMS_JOURS[jourDe(d)].slice(0, 3) + ". " + enDate(d).getUTCDate());
@@ -910,7 +926,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   }
   function inscrire(creneau, poste, role, dateChoisie) {
     if (!exiger() || etat.occupe) return;
-    var laDate = dateChoisie || etat.date, repeter = dateChoisie ? false : etat.repeter;
+    var laDate = dateChoisie || etat.date, repeter = etat.repeter;
     etat.occupe = true; etat.enCours = laDate + "|" + creneau + "|" + poste; rendre();
     toastAttente("Inscription en cours…");
     var d = { date: laDate, creneau: creneau, poste: poste, role: role, repeter: repeter, jusqua: finDuMois(laDate),
