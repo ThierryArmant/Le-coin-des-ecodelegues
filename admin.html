@@ -96,6 +96,7 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
 .cell.complet { background: var(--ok-bg); border-radius: 6px; }
 
 /* Élèves */
+.eleves td.code { font-weight: 700; letter-spacing: .08em; }
 .eleves td.n { font-family: var(--font-data); font-variant-numeric: tabular-nums; text-align: right; }
 .legende { display: flex; gap: 14px; flex-wrap: wrap; font-size: .82rem; color: var(--muted); }
 .legende span { display: inline-flex; gap: 6px; align-items: center; }
@@ -160,6 +161,7 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
 
       <section class="carte">
         <h2>Élèves inscrits</h2>
+        <p class="aide">Les codes servent à aider un élève qui a oublié le sien. Ne les affiche pas devant la classe.</p>
         <div class="defile"><table class="eleves" id="eleves"></table></div>
       </section>
     </div>
@@ -320,19 +322,19 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
     var d = etat.d, t = $("eleves"); t.textContent = "";
     var par = {};
     d.inscriptions.filter(function (i) { return i.date >= d.aujourdhui; }).forEach(function (i) {
-      var k = nomEleve(i); var o = par[k] || (par[k] = { nom: i.prenom + " " + i.initiale + ".", classe: i.classe, tit: 0, rem: 0, prochain: i.date, postes: {} });
+      var k = nomEleve(i); var o = par[k] || (par[k] = { nom: i.prenom + " " + i.initiale + ".", classe: i.classe, code: i.code || "", tit: 0, rem: 0, prochain: i.date, postes: {} });
       if (i.role === "remplacant") o.rem++; else o.tit++;
       if (i.date < o.prochain) o.prochain = i.date;
       o.postes[i.poste] = 1;
     });
     var liste = Object.keys(par).map(function (k) { return par[k]; }).sort(function (a, b) { return (b.tit + b.rem) - (a.tit + a.rem) || a.classe.localeCompare(b.classe); });
     if (!liste.length) { t.appendChild(elt("caption", "vide", "Aucun élève inscrit pour l'instant.")); return; }
-    var h = elt("tr"); ["Élève", "Classe", "Titulaire", "Remplaçant", "Prochain service", "Postes"].forEach(function (x) { h.appendChild(elt("th", null, x)); });
+    var h = elt("tr"); ["Élève", "Classe", "Code", "Titulaire", "Remplaçant", "Prochain service", "Postes"].forEach(function (x) { h.appendChild(elt("th", null, x)); });
     var th = elt("thead"); th.appendChild(h); t.appendChild(th);
     var tb = elt("tbody");
     liste.forEach(function (o) {
       var tr = elt("tr");
-      tr.appendChild(elt("td", null, o.nom)); tr.appendChild(elt("td", null, o.classe));
+      tr.appendChild(elt("td", null, o.nom)); tr.appendChild(elt("td", null, o.classe)); tr.appendChild(elt("td", "n code", o.code || "ancien"));
       tr.appendChild(elt("td", "n", String(o.tit))); tr.appendChild(elt("td", "n", String(o.rem)));
       tr.appendChild(elt("td", null, jourCourt(o.prochain))); tr.appendChild(elt("td", null, Object.keys(o.postes).join(", ")));
       tb.appendChild(tr);

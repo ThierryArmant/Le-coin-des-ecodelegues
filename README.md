@@ -19,6 +19,6 @@ Jours, créneaux, postes, places, remplaçants, dates de début et de fin, ferme
 
 ## Données personnelles
 * Données collectées : prénom, initiale du nom, classe, créneaux choisis. Aucun nom de famille complet, aucune adresse mail.
-* La page publique n'affiche **aucun nom** : une place occupée apparaît seulement comme « Pris ». Chaque élève ne voit ses créneaux qu'avec son code personnel à 4 chiffres, dont le Sheet ne garde qu'une empreinte.
+* La page publique n'affiche **aucun nom** : une place occupée apparaît seulement comme « Pris ». Chaque élève ne voit ses créneaux qu'avec son code personnel à 4 chiffres. Ce code n'est lisible que par le professeur (Sheet et vue professeur), pour aider un élève qui l'a oublié.
 * Les noms ne sont visibles que dans le Google Sheet et dans la vue professeur, protégée par un code.
 * L'onglet « Inscriptions » est vidé en fin d'année scolaire.

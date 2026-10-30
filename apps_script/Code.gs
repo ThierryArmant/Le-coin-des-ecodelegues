@@ -21,8 +21,8 @@
  * une période s'écrit « JJ/MM/AAAA > JJ/MM/AAAA ».
  * Pour retirer un élève : supprime sa ligne dans l'onglet « Inscriptions ».
  *
- * Données personnelles : la page publique n'affiche aucun nom. Prénom, initiale
- * et classe ne sont visibles que dans ce Sheet. Vide l'onglet « Inscriptions »
+ * Données personnelles : la page publique n'affiche aucun nom. Prénom, initiale,
+ * classe et code élève ne sont visibles que dans ce Sheet et dans la vue professeur. Vide l'onglet « Inscriptions »
  * en fin d'année scolaire.
  */
 
@@ -46,7 +46,7 @@ const REGLAGES_PAR_DEFAUT = [
     'Vacances et jours fériés : dates ou périodes « début > fin », séparées par des points-virgules'],
 ];
 
-const ENTETES_INSCRIPTIONS = ['ID', 'Horodatage', 'Date', 'Jour', 'Créneau', 'Poste', 'Prénom', 'Initiale', 'Classe', 'Empreinte code', 'Rôle'];
+const ENTETES_INSCRIPTIONS = ['ID', 'Horodatage', 'Date', 'Jour', 'Créneau', 'Poste', 'Prénom', 'Initiale', 'Classe', 'Code élève', 'Rôle'];
 const NOMS_JOURS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
 /* ---------- Points d'entrée ---------- */
@@ -91,7 +91,7 @@ function getData(identite) {
   if (identite && identite.prenom) {
     id = verifierIdentite_(identite);
     const siennes = liste.filter(i => cle_(i) === id.cle);
-    if (siennes.length && siennes[0].empreinte !== id.empreinte) { codeRefuse = true; id = null; }
+    if (siennes.length && !codeOk_(siennes[0].empreinte, id)) { codeRefuse = true; id = null; }
   }
   return {
     config: config,
@@ -130,7 +130,7 @@ function inscrire(demande) {
 
     const liste = lireInscriptions_();
     const dejaInscrit = liste.filter(i => cle_(i) === id.cle)[0];
-    if (dejaInscrit && dejaInscrit.empreinte !== id.empreinte) {
+    if (dejaInscrit && !codeOk_(dejaInscrit.empreinte, id)) {
       throw new Error('Ce prénom et cette classe sont déjà utilisés avec un autre code. Reprends ton code habituel.');
     }
 
@@ -146,7 +146,7 @@ function inscrire(demande) {
       const pleine = memeCase.filter(i => i.poste === poste.nom && i.role === role).length >= capacite;
       if (dejaLa || pleine) { sautees.push(d); return; }
       lignes.push([Utilities.getUuid().slice(0, 8), new Date(), d, NOMS_JOURS[jourDe_(d)], demande.creneau, poste.nom,
-                   id.prenom, id.initiale, id.classe, id.empreinte, role === 'remplacant' ? 'Remplaçant' : 'Titulaire']);
+                   id.prenom, id.initiale, id.classe, "'" + id.code, role === 'remplacant' ? 'Remplaçant' : 'Titulaire']);
       ajoutees.push(d);
     });
 
@@ -177,7 +177,7 @@ function retirer(idInscription, identite) {
     for (let r = 1; r < valeurs.length; r++) {
       if (String(valeurs[r][0]) === String(idInscription)) {
         const ligne = { prenom: valeurs[r][6], initiale: valeurs[r][7], classe: valeurs[r][8] };
-        if (cle_(ligne) !== id.cle || valeurs[r][9] !== id.empreinte) {
+        if (cle_(ligne) !== id.cle || !codeOk_(valeurs[r][9], id)) {
           throw new Error('Code incorrect : seule la personne inscrite peut se retirer.');
         }
         f.deleteRow(r + 1);
@@ -210,6 +210,7 @@ function admin(code) {
     inscriptions: lireInscriptions_().map(i => ({
       date: i.date, creneau: i.creneau, poste: i.poste, role: i.role,
       prenom: i.prenom, initiale: i.initiale, classe: i.classe,
+      code: /^\d{4}$/.test(i.empreinte) ? i.empreinte : '',
     })),
   };
 }
@@ -276,6 +277,7 @@ function preparerOnglets_() {
     f.getRange(1, 1, 1, ENTETES_INSCRIPTIONS.length).setValues([ENTETES_INSCRIPTIONS]).setFontWeight('bold');
     f.setFrozenRows(1);
     f.getRange('C:C').setNumberFormat('@');
+    f.getRange('J:J').setNumberFormat('@');
     f.hideColumns(10);
     return;
   }
@@ -285,9 +287,10 @@ function preparerOnglets_() {
     f.insertColumnBefore(3);
     f.getRange(1, 1, 1, ENTETES_INSCRIPTIONS.length).setValues([ENTETES_INSCRIPTIONS]).setFontWeight('bold');
     f.getRange('C:C').setNumberFormat('@');
+    f.getRange('J:J').setNumberFormat('@');
     f.hideColumns(10);
   }
-  if (f.getRange(1, 11).getDisplayValue() !== 'Rôle') {
+  if (f.getRange(1, 1, 1, ENTETES_INSCRIPTIONS.length).getDisplayValues()[0].join('|') !== ENTETES_INSCRIPTIONS.join('|')) {
     f.getRange(1, 1, 1, ENTETES_INSCRIPTIONS.length).setValues([ENTETES_INSCRIPTIONS]).setFontWeight('bold');
   }
 }
@@ -340,9 +343,16 @@ function verifierIdentite_(d) {
   const empreinte = Utilities.base64Encode(
     Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, code + '|' + SpreadsheetApp.getActiveSpreadsheet().getId())
   );
-  const id = { prenom: prenomPropre, initiale: initiale, classe: classe, empreinte: empreinte };
+  const id = { prenom: prenomPropre, initiale: initiale, classe: classe, code: code, empreinte: empreinte };
   id.cle = cle_(id);
   return id;
+}
+
+// Le code est enregistré en clair (lisible par le professeur pour aider un élève qui l'a oublié).
+// Les anciennes lignes gardent une empreinte : les deux formes sont acceptées.
+function codeOk_(valeur, id) {
+  const v = String(valeur || '').replace(/^'/, '');
+  return v === id.code || v === id.empreinte;
 }
 
 function cle_(o) {
