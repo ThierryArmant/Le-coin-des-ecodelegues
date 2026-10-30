@@ -50,7 +50,7 @@ body {
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-block: 20px 48px;
 }
-.wrap { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.wrap { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
 h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.7rem, 6vw, 2.3rem); line-height: 1.05; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
 .lead { margin: 6px 0 0; color: var(--muted); max-width: 52ch; }
 .eyebrow { font-family: var(--font-data); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
@@ -108,6 +108,9 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .place.libre { border-style: dashed; color: var(--accent); background: var(--surface); cursor: pointer; font-weight: 700; }
 .place.libre:hover { border-color: var(--accent); }
 .place.libre:disabled { cursor: default; opacity: .55; }
+.place.libre.en-cours, .tg-plus.en-cours { opacity: 1 !important; background: var(--accent); color: var(--accent-fg); border-style: solid; }
+@media (prefers-reduced-motion: no-preference) { .en-cours { animation: pulse 1s ease-in-out infinite; } }
+@keyframes pulse { 50% { opacity: .65; } }
 .place.moi-meme { background: var(--mine); border-color: var(--poste2); cursor: pointer; }
 .place.moi-meme .x { font-weight: 700; color: var(--danger); }
 
@@ -157,7 +160,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .zone-planning { display: flex; flex-direction: column; gap: 18px; }
 
 /* Planning global */
-@media (min-width: 760px) { .global { align-self: center; width: min(820px, calc(100vw - 32px)); } }
+
 .global { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
 .global h2 { font-family: var(--font-display); font-size: 1.1rem; margin: 0 0 4px; font-weight: 600; }
 .global .aide { margin: 0 0 8px; }
@@ -465,6 +468,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     var t = $("toast"); t.textContent = msg; t.className = "toast" + (erreur ? " erreur" : ""); t.hidden = false;
     clearTimeout(minuteur); minuteur = setTimeout(function () { t.hidden = true; }, 3600);
   }
+  function toastAttente(msg) { var t = $("toast"); clearTimeout(minuteur); t.textContent = msg; t.className = "toast"; t.hidden = false; }
   function messageErreur(e) { return (e && e.message ? e.message : String(e)).replace(/^Error:\s*/, "").replace(/^Exception:\s*/, ""); }
 
   /* ---- Disponibilités ---- */
@@ -824,7 +828,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
           // Place libre et pas déjà inscrit sur ce créneau ce jour-là : on peut se rajouter d'un toucher
           var dejaLa = etat.inscriptions.some(function (i) { return i.date === d && i.creneau === cr && i.mien; });
           if (gens.length < p.places && !dejaLa && c.ouvert) {
-            var plus = elt("button", "tg-plus", "+ Moi"); plus.type = "button";
+            var ici = etat.enCours === d + "|" + cr + "|" + p.nom;
+            var plus = elt("button", "tg-plus" + (ici ? " en-cours" : ""), ici ? "Inscription…" : "+ Moi"); plus.type = "button";
             plus.setAttribute("aria-label", "M'inscrire " + dateLongue(d) + ", " + cr + ", " + p.nom);
             plus.disabled = etat.occupe;
             plus.addEventListener("click", function () { inscrire(cr, p.nom, "titulaire", d); });
@@ -856,7 +861,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       places.appendChild(pill);
     });
     for (var k = gens.length; k < capacite; k++) {
-      var libre = elt("button", "place libre", role === "remplacant" ? "+ Je double" : "+ Je prends");
+      var enCoursIci = etat.enCours === etat.date + "|" + cr + "|" + poste && k === gens.length;
+      var libre = elt("button", "place libre" + (enCoursIci ? " en-cours" : ""), enCoursIci ? "Inscription…" : (role === "remplacant" ? "+ Je double" : "+ Je prends"));
       libre.type = "button";
       libre.disabled = !etat.config.ouvert || etat.occupe || dejaLa;
       if (dejaLa) libre.title = "Tu as déjà un poste sur ce créneau";
@@ -905,14 +911,15 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   function inscrire(creneau, poste, role, dateChoisie) {
     if (!exiger() || etat.occupe) return;
     var laDate = dateChoisie || etat.date, repeter = dateChoisie ? false : etat.repeter;
-    etat.occupe = true; rendre();
+    etat.occupe = true; etat.enCours = laDate + "|" + creneau + "|" + poste; rendre();
+    toastAttente("Inscription en cours…");
     var d = { date: laDate, creneau: creneau, poste: poste, role: role, repeter: repeter, jusqua: finDuMois(laDate),
               prenom: etat.moi.prenom, initiale: etat.moi.initiale, classe: etat.moi.classe, code: etat.moi.code };
     appel("inscrire", d).then(function (r) {
-      appliquer(r); etat.occupe = false; etat.repeter = false; $("repeter").checked = false; rendre();
+      appliquer(r); etat.occupe = false; etat.enCours = null; $("toast").hidden = true; etat.repeter = false; $("repeter").checked = false; rendre();
       bravo(creneau, poste, role, r.ajoutees || [d.date], r.sautees || []);
     }).catch(function (e) {
-      toast(messageErreur(e), true); etat.occupe = false; return charger();
+      etat.enCours = null; toast(messageErreur(e), true); etat.occupe = false; return charger();
     });
   }
   function retirer(g) {
