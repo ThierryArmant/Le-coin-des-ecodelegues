@@ -142,6 +142,11 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .dispo[aria-pressed="true"] { background: var(--accent); border: 1px solid var(--accent); color: var(--accent-fg); font-weight: 700; }
 .dispo::after { content: ""; }
 .dispo[aria-pressed="true"]::after { content: "✓"; font-size: 1rem; }
+/* Étape avant le planning */
+.etape { background: var(--surface); border: 1px dashed var(--accent); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.etape b { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
+.etape p { margin: 0; color: var(--muted); }
+.zone-planning { display: flex; flex-direction: column; gap: 18px; }
 /* Semaines */
 .semaine { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; }
 .semaine b { text-align: center; font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
@@ -234,6 +239,13 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     <div id="mes"></div>
   </section>
 
+  <section class="etape" id="etape" hidden>
+    <b id="etape-titre">Première étape</b>
+    <p id="etape-texte"></p>
+    <button class="btn btn-primaire" type="button" id="etape-bouton" hidden>Indiquer mes disponibilités</button>
+  </section>
+
+  <div class="zone-planning" id="zone-planning">
   <div class="legend" id="legende"></div>
 
   <div class="semaine">
@@ -249,6 +261,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   <label class="repeter"><input type="checkbox" id="repeter"><span id="repeter-libelle">Chaque semaine jusqu'en juin</span></label>
 
   <section class="creneaux" id="creneaux" aria-live="polite"><p class="chargement">Chargement du planning…</p></section>
+  </div>
 
   <footer class="pied"><a href="admin.html">Espace professeur</a></footer>
 </div>
@@ -475,6 +488,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     toast("Voici les créneaux où tu es libre. Choisis une place.");
   });
   $("modifier").addEventListener("click", function () { ouvrirFormulaire(true); });
+  $("etape-bouton").addEventListener("click", function () { ouvrirFormulaire(true); rendre(); });
   $("annuler-modif").addEventListener("click", function () { etat.modif = false; afficherMoi(); });
   $("changer").addEventListener("click", function () {
     etat.moi = null; ecrireMoi(null); etat.codeRefuse = false; afficherMoi(); ouvrirFormulaire(false); charger();
@@ -561,6 +575,18 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     else if (!c.ouvert) { ban.hidden = false; ban.textContent = "Les inscriptions sont fermées pour le moment. Tu peux consulter le planning."; }
     else ban.hidden = true;
 
+    // Pas de planning tant que l'élève n'a pas dit qui il est et quand il est libre
+    var pret = aDesDispos();
+    $("zone-planning").hidden = !pret; $("etape").hidden = pret;
+    if (!pret) {
+      $("etape-titre").textContent = etat.moi ? "Dernière étape" : "Première étape";
+      $("etape-texte").textContent = etat.moi
+        ? "Indique quand tu es libre : le planning n'affichera que ces créneaux."
+        : "Remplis « Qui es-tu ? » et touche les créneaux où tu es libre. Ton planning s'affichera ensuite.";
+      $("etape-bouton").hidden = !etat.moi || !$("form-moi").hidden;
+      rendreMes();
+      return;
+    }
     var sem = etat.semaines[etat.semaine];
     if (!sem) { $("creneaux").textContent = aDesDispos() ? "Aucune date ne correspond à tes disponibilités. Touche « Modifier ma fiche » pour en ajouter." : "Aucune date ouverte pour le moment."; return; }
     var parCase = c.postes.reduce(function (a, p) { return a + p.places; }, 0);
