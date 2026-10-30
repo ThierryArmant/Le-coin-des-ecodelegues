@@ -107,6 +107,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .mes li { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .mes .heure { font-size: .9rem; }
 .vide { color: var(--muted); font-size: .9rem; margin: 0; }
+.alerte { color: var(--danger); font-weight: 700; font-size: .92rem; margin: 0; }
 
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 700; max-width: calc(100% - 32px); box-shadow: 0 6px 20px rgba(0,0,0,.2); z-index: 20; }
 .toast.erreur { background: var(--danger); color: #fff; }
@@ -202,6 +203,11 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     </div>
   </section>
 
+  <section class="mes" aria-labelledby="mes-titre">
+    <h2 id="mes-titre">Mes créneaux</h2>
+    <div id="mes"></div>
+  </section>
+
   <div class="legend" id="legende"></div>
 
   <div class="semaine">
@@ -216,10 +222,6 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 
   <section class="creneaux" id="creneaux" aria-live="polite"><p class="chargement">Chargement du planning…</p></section>
 
-  <section class="mes" aria-labelledby="mes-titre">
-    <h2 id="mes-titre">Mes créneaux</h2>
-    <div id="mes"></div>
-  </section>
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
 <div class="bravo" id="bravo" hidden>
@@ -263,6 +265,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   function jourMois(iso) { var d = enDate(iso); return d.getUTCDate() + " " + MOIS[d.getUTCMonth()]; }
   function dateLongue(iso) { return NOMS_JOURS[jourDe(iso)].toLowerCase() + " " + jourMois(iso); }
   function lundiDe(iso) { var d = enDate(iso); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return enIso(d); }
+  function finDuMois(iso) { var d = enDate(iso); return enIso(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0))); }
+  var MOIS_LONGS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
   function isoLocal() { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
   function datesOuvertes(c) {
     var jours = c.jours.map(function (j) { return NOMS_JOURS.indexOf(j); }).filter(function (n) { return n >= 0; });
@@ -304,7 +308,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       inscrire: function (d) {
         var p = config.postes.filter(function (x) { return x.nom === d.poste; })[0];
         var cap = d.role === "remplacant" ? config.remplacants : p.places;
-        var cibles = d.repeter ? ouvertes.filter(function (x) { return x >= d.date && jourDe(x) === jourDe(d.date); }) : [d.date];
+        var cibles = d.repeter ? ouvertes.filter(function (x) { return x >= d.date && x <= d.jusqua && jourDe(x) === jourDe(d.date); }) : [d.date];
         var ajoutees = [], sautees = [];
         cibles.forEach(function (x) {
           var ici = liste.filter(function (i) { return i.date === x && i.creneau === d.creneau; });
@@ -480,7 +484,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       b.addEventListener("click", function () { etat.date = d; rendre(); });
       nav.appendChild(b);
     });
-    $("repeter-libelle").textContent = "Chaque " + NOMS_JOURS[jourDe(etat.date)].toLowerCase() + " jusqu'au " + jourMois(c.fin) + " (même créneau, même poste)";
+    var fm = finDuMois(etat.date); if (fm > c.fin) fm = c.fin;
+    $("repeter-libelle").textContent = "Aussi les autres " + NOMS_JOURS[jourDe(etat.date)].toLowerCase() + "s de " + MOIS_LONGS[enDate(etat.date).getUTCMonth()] + ", jusqu'au " + jourMois(fm) + " (même créneau, même poste)";
 
     // Créneaux du jour
     var moi = etat.moi;
@@ -548,6 +553,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   function rendreMes() {
     var mes = $("mes"); mes.textContent = "";
     if (!etat.moi) { mes.appendChild(elt("p", "vide", "Remplis « Qui es-tu ? » pour voir tes créneaux ici.")); return; }
+    if (etat.codeRefuse) { mes.appendChild(elt("p", "alerte", "Ce prénom et cette classe sont déjà inscrits avec un autre code. Touche « Changer » et tape ton code habituel. Si tu l'as oublié, demande-le à ton professeur.")); return; }
     var miens = mesAVenir();
     if (!miens.length) { mes.appendChild(elt("p", "vide", "Aucun créneau pour l'instant. Touche « + Je prends » sur une place libre.")); return; }
     var r = rang(miens.length);
@@ -584,10 +590,10 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   function inscrire(creneau, poste, role) {
     if (!exiger() || etat.occupe) return;
     etat.occupe = true; rendre();
-    var d = { date: etat.date, creneau: creneau, poste: poste, role: role, repeter: etat.repeter,
+    var d = { date: etat.date, creneau: creneau, poste: poste, role: role, repeter: etat.repeter, jusqua: finDuMois(etat.date),
               prenom: etat.moi.prenom, initiale: etat.moi.initiale, classe: etat.moi.classe, code: etat.moi.code };
     appel("inscrire", d).then(function (r) {
-      appliquer(r); etat.occupe = false; rendre();
+      appliquer(r); etat.occupe = false; etat.repeter = false; $("repeter").checked = false; rendre();
       bravo(creneau, poste, role, r.ajoutees || [d.date], r.sautees || []);
     }).catch(function (e) {
       toast(messageErreur(e), true); etat.occupe = false; return charger();
@@ -609,6 +615,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   function charger() {
     return appel("getData", etat.moi).then(function (r) {
       appliquer(r); rendre();
+      etat.codeRefuse = !!r.codeRefuse; rendreMes();
       if (r.codeRefuse) toast("Code incorrect pour ce prénom et cette classe. Touche « Changer » pour corriger.", true);
     }).catch(function (e) { $("creneaux").textContent = "Impossible de charger le planning : " + messageErreur(e); });
   }

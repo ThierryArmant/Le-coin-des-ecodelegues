@@ -109,7 +109,7 @@ function getData(identite) {
 /**
  * demande : { date, creneau, poste, role ('titulaire' ou 'remplacant'), repeter, prenom, initiale, classe, code }
  * Avec repeter = true, inscrit aussi le même jour de la semaine, même créneau
- * et même poste, chaque semaine ouverte jusqu'à la fin du planning.
+ * et même poste, chaque semaine ouverte jusqu'à la date « jusqua » (fin du mois).
  */
 function inscrire(demande) {
   const verrou = LockService.getScriptLock();
@@ -136,7 +136,7 @@ function inscrire(demande) {
 
     const jourSemaine = jourDe_(demande.date);
     const cibles = demande.repeter
-      ? ouvertes.filter(d => d >= demande.date && jourDe_(d) === jourSemaine)
+      ? ouvertes.filter(d => d >= demande.date && (!demande.jusqua || d <= demande.jusqua) && jourDe_(d) === jourSemaine)
       : [demande.date];
 
     const lignes = [], ajoutees = [], sautees = [];
