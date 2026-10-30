@@ -164,6 +164,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .tg-poste small { display: block; color: var(--muted); font-size: .7rem; }
 .tg-poste .moi-tg { font-weight: 700; }
 .tg-libre { color: var(--muted); font-style: italic; }
+.lien-mode { font: inherit; font-size: .9rem; background: none; border: 0; color: var(--accent); text-decoration: underline; cursor: pointer; padding: 4px 0; justify-self: center; }
 /* Semaines */
 .semaine { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; }
 .semaine b { text-align: center; font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
@@ -240,12 +241,13 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       <label>1re lettre du nom<input id="initiale" maxlength="1" autocomplete="off" placeholder="M" required></label>
       <label>Ta classe<input id="classe" maxlength="12" placeholder="4E2" autocomplete="off" required></label>
       <label class="code">Ton code secret<input id="code" inputmode="numeric" pattern="\d{4}" maxlength="4" placeholder="4 chiffres" autocomplete="off" required></label>
-      <fieldset class="dispos" style="grid-column:1/-1">
+      <fieldset class="dispos" id="bloc-dispos" style="grid-column:1/-1">
         <legend>Quand es-tu libre ? Touche les créneaux où tu n'as pas cours.</legend>
         <div class="defile-dispos"><table class="grille-dispos" id="grille-dispos"></table></div>
       </fieldset>
       <button class="btn btn-primaire" type="submit" id="valider-moi" style="grid-column:1/-1">Enregistrer ma fiche</button>
       <button class="btn btn-lien" type="button" id="annuler-modif" style="grid-column:1/-1" hidden>Annuler</button>
+      <button class="lien-mode" type="button" id="mode-retrouver" style="grid-column:1/-1">J'ai déjà une fiche : la retrouver</button>
     </form>
     <p class="aide" id="aide-moi">Exemple : Léa Martin en 4e2 écrit « Léa », « M », « 4E2 ». Invente un code de 4 chiffres et garde-le : il te servira à retrouver tes créneaux.</p>
     <div class="resume" id="resume" hidden>
@@ -321,6 +323,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     if (nom === "getData") return poster(Object.assign({ action: "getData" }, a));
     if (nom === "inscrire") return poster(Object.assign({ action: "inscrire" }, a));
     if (nom === "modifierFiche") return poster({ action: "modifierFiche", ancien: a, nouveau: b });
+    if (nom === "enregistrerFiche") return poster(Object.assign({ action: "enregistrerFiche" }, a));
     return poster(Object.assign({ action: "retirer", id: a }, b));
   }
 
@@ -363,10 +366,13 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     var ouvertes = datesOuvertes(config).filter(function (d) { return d >= isoLocal(); });
     [[0, "11h30-12h00", "Scan plateau", "titulaire"], [0, "12h00-12h30", "Pain et fruits", "titulaire"], [1, "12h30-13h00", "Biodéchets et emballages", "titulaire"], [1, "12h30-13h00", "Biodéchets et emballages", "remplacant"], [2, "11h30-12h00", "Scan plateau", "titulaire"]]
       .forEach(function (l, k) { if (ouvertes[l[0]]) liste.push({ id: "d" + (n++), date: ouvertes[l[0]], creneau: l[1], poste: l[2], role: l[3], prenom: "Exemple", initiale: "ABCDE".charAt(k), classe: "4E1", code: "0000" }); });
+    var fiches = {};
     function donnees(ident) {
       var k = ident && ident.prenom ? cle(ident) : null;
       var refuse = !!k && liste.some(function (i) { return cle(i) === k && i.code !== ident.code; });
-      return { config: config, aujourdhui: isoLocal(), codeRefuse: refuse, inscriptions: liste.map(function (i) {
+      var fi = k && fiches[k];
+      if (fi && fi.code !== ident.code) refuse = true;
+      return { config: config, aujourdhui: isoLocal(), codeRefuse: refuse, fiche: fi && !refuse ? { dispos: fi.dispos } : null, inscriptions: liste.map(function (i) {
         var mien = !!k && !refuse && cle(i) === k;
         var o = { date: i.date, creneau: i.creneau, poste: i.poste, role: i.role, mien: mien }; if (mien) o.id = i.id;
         if (k && !refuse) { o.prenom = i.prenom; o.initiale = i.initiale; o.classe = i.classe; }
@@ -389,7 +395,15 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
         if (!ajoutees.length) return Promise.reject(new Error("Place indisponible : le poste est complet ou tu as déjà un poste sur ce créneau."));
         var r = donnees(d); r.ajoutees = ajoutees; r.sautees = sautees; return Promise.resolve(r);
       },
+      enregistrerFiche: function (m) {
+        var k = cle(m), f = fiches[k];
+        if (f && f.code !== m.code) return Promise.reject(new Error("Ce prénom et cette classe ont déjà une fiche avec un autre code."));
+        fiches[k] = { code: m.code, dispos: m.dispos || [] };
+        return Promise.resolve(donnees(m));
+      },
       modifierFiche: function (ancien, nouveau) {
+        var fa = fiches[cle(ancien)]; delete fiches[cle(ancien)];
+        fiches[cle(nouveau)] = { code: nouveau.code, dispos: nouveau.dispos || (fa ? fa.dispos : []) };
         var nb = 0;
         liste.forEach(function (i) { if (cle(i) === cle(ancien) && i.code === ancien.code) { i.prenom = nouveau.prenom; i.initiale = nouveau.initiale; i.classe = nouveau.classe; i.code = nouveau.code; nb++; } });
         var r = donnees(nouveau); r.modifiees = nb; return Promise.resolve(r);
@@ -485,9 +499,23 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     $("valider-moi").textContent = modif ? "Enregistrer la correction" : "Enregistrer ma fiche";
     $("annuler-modif").hidden = !modif;
     construireGrilleDispos(modif && m.dispos ? m.dispos : []);
+    modeRetrouver(false);
+    $("mode-retrouver").hidden = !!modif;
     $("form-moi").hidden = false; $("aide-moi").hidden = false; $("resume").hidden = true; $("moi-titre").hidden = false;
     $("prenom").focus();
   }
+  function modeRetrouver(oui) {
+    etat.retrouver = oui;
+    $("bloc-dispos").hidden = oui;
+    $("moi-titre").textContent = oui ? "Retrouver ma fiche éco-délégué" : (etat.modif ? "Corrige ta fiche éco-délégué" : "Ma fiche éco-délégué");
+    $("valider-moi").textContent = oui ? "Retrouver ma fiche" : (etat.modif ? "Enregistrer la correction" : "Enregistrer ma fiche");
+    $("mode-retrouver").textContent = oui ? "Je n'ai pas encore de fiche : la créer" : "J'ai déjà une fiche : la retrouver";
+    $("aide-moi").textContent = oui
+      ? "Tape exactement le prénom, la 1re lettre du nom, la classe et le code choisis à ta première inscription."
+      : "Exemple : Léa Martin en 4e2 écrit « Léa », « M », « 4E2 ». Invente un code de 4 chiffres et garde-le : il te servira à retrouver ta fiche sur n'importe quel téléphone.";
+  }
+  $("mode-retrouver").addEventListener("click", function () { modeRetrouver(!etat.retrouver); });
+
   $("form-moi").addEventListener("submit", function (ev) {
     ev.preventDefault();
     var m = { prenom: $("prenom").value.trim(), initiale: $("initiale").value.trim().charAt(0), classe: $("classe").value.trim(), code: $("code").value.trim() };
@@ -495,13 +523,28 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     if (!/^[a-zà-ý]$/i.test(m.initiale)) return toast("Indique la 1re lettre de ton nom.", true);
     if (m.classe.length < 2) return toast("Indique ta classe, par exemple 4E2.", true);
     if (!/^\d{4}$/.test(m.code)) return toast("Ton code doit faire 4 chiffres.", true);
+    if (etat.retrouver) {
+      appel("getData", m).then(function (r) {
+        if (r.codeRefuse) return toast("Code incorrect pour ce prénom et cette classe. Si tu l'as oublié, demande-le à ton professeur.", true);
+        var connu = r.fiche || r.inscriptions.some(function (i) { return i.mien; });
+        if (!connu) return toast("Aucune fiche à ce nom. Vérifie l'orthographe, ou crée ta fiche.", true);
+        m.dispos = r.fiche ? r.fiche.dispos : [];
+        etat.moi = m; ecrireMoi(m); modeRetrouver(false); afficherMoi(); etat.date = null;
+        appliquer(r); etat.codeRefuse = false; rendre();
+        toast("Fiche retrouvée. Bon retour, " + cap(m.prenom) + " !");
+      }).catch(function (e) { toast(messageErreur(e), true); });
+      return;
+    }
     m.dispos = lireGrilleDispos();
     if (!m.dispos.length) return toast("Touche au moins un créneau où tu es libre.", true);
     if (etat.modif && etat.moi) {
       var ancien = etat.moi;
       if (cle(ancien) === cle(m) && ancien.code === m.code) {
-        etat.moi = m; ecrireMoi(m); etat.modif = false; afficherMoi(); etat.date = null; construireSemaines(); rendre();
-        toast("Disponibilités mises à jour."); return;
+        appel("enregistrerFiche", m).then(function (r) {
+          etat.moi = m; ecrireMoi(m); etat.modif = false; afficherMoi(); etat.date = null; appliquer(r); rendre();
+          toast("Disponibilités mises à jour.");
+        }).catch(function (e) { toast(messageErreur(e), true); });
+        return;
       }
       appel("modifierFiche", ancien, m).then(function (r) {
         etat.moi = m; ecrireMoi(m); etat.modif = false; afficherMoi(); etat.date = null;
@@ -510,8 +553,10 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       }).catch(function (e) { toast(messageErreur(e), true); });
       return;
     }
-    etat.moi = m; ecrireMoi(m); afficherMoi(); etat.date = null; charger();
-    toast("Voici les créneaux où tu es libre. Choisis une place.");
+    appel("enregistrerFiche", m).then(function (r) {
+      etat.moi = m; ecrireMoi(m); afficherMoi(); etat.date = null; appliquer(r); etat.codeRefuse = false; rendre();
+      toast("Fiche enregistrée. Voici les créneaux où tu es libre.");
+    }).catch(function (e) { toast(messageErreur(e), true); });
   });
   $("modifier").addEventListener("click", function () { ouvrirFormulaire(true); });
   $("etape-bouton").addEventListener("click", function () { ouvrirFormulaire(true); rendre(); });
@@ -822,6 +867,10 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   }
   function charger() {
     return appel("getData", etat.moi).then(function (r) {
+      if (etat.moi && !r.codeRefuse) {
+        if (r.fiche) { etat.moi.dispos = r.fiche.dispos; ecrireMoi(etat.moi); afficherMoi(); }
+        else if (etat.moi.dispos && etat.moi.dispos.length) appel("enregistrerFiche", etat.moi).catch(function () {});
+      }
       appliquer(r); rendre();
       etat.codeRefuse = !!r.codeRefuse; rendreMes();
       if (r.codeRefuse) toast("Code incorrect pour ce prénom et cette classe. Touche « Modifier ma fiche » pour corriger.", true);

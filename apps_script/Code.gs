@@ -28,6 +28,8 @@
 
 const ONGLET_INSCRIPTIONS = 'Inscriptions';
 const ONGLET_REGLAGES = 'Réglages';
+const ONGLET_FICHES = 'Fiches';
+const ENTETES_FICHES = ['Prénom', 'Initiale', 'Classe', 'Code élève', 'Disponibilités', 'Mise à jour'];
 
 // Calendrier 2026-2027, zone B (académie d'Aix-Marseille)
 const REGLAGES_PAR_DEFAUT = [
@@ -67,6 +69,7 @@ function doPost(e) {
     if (corps.action === 'retirer') return retirer(corps.id, corps);
     if (corps.action === 'admin') return admin(corps.code);
     if (corps.action === 'modifierFiche') return modifierFiche(corps.ancien, corps.nouveau);
+    if (corps.action === 'enregistrerFiche') return enregistrerFiche(corps);
     throw new Error('Action inconnue.');
   });
 }
@@ -94,10 +97,17 @@ function getData(identite) {
     const siennes = liste.filter(i => cle_(i) === id.cle);
     if (siennes.length && !codeOk_(siennes[0].empreinte, id)) { codeRefuse = true; id = null; }
   }
+  let fiche = null;
+  if (id) {
+    const f = lireFiche_(id);
+    if (f && !codeOk_(f.code, id)) { codeRefuse = true; id = null; }
+    else if (f) fiche = { dispos: f.dispos };
+  }
   return {
     config: config,
     aujourdhui: Utilities.formatDate(new Date(), 'Europe/Paris', 'yyyy-MM-dd'),
     codeRefuse: codeRefuse,
+    fiche: fiche,
     inscriptions: liste.map(i => {
       const mien = !!id && cle_(i) === id.cle;
       const o = { date: i.date, creneau: i.creneau, poste: i.poste, role: i.role, mien: mien };
@@ -243,6 +253,10 @@ function modifierFiche(ancien, nouveau) {
       }
     }
     lignes.forEach(r => f.getRange(r, 7, 1, 4).setValues([[n.prenom, n.initiale, n.classe, "'" + n.code]]));
+    const ancienneFiche = lireFiche_(a);
+    if (ancienneFiche && !codeOk_(ancienneFiche.code, a)) throw new Error('Code incorrect : seule la personne inscrite peut modifier sa fiche.');
+    const dispos = (nouveau && nouveau.dispos) || (ancienneFiche ? ancienneFiche.dispos : []);
+    ecrireFiche_(n, dispos, ancienneFiche ? ancienneFiche.ligne : 0);
     SpreadsheetApp.flush();
     const sortie = getData(n);
     sortie.modifiees = lignes.length;
@@ -250,6 +264,52 @@ function modifierFiche(ancien, nouveau) {
   } finally {
     verrou.releaseLock();
   }
+}
+
+/**
+ * Enregistre la fiche d'un élève (identité + disponibilités) pour qu'il la retrouve
+ * sur n'importe quel appareil avec son prénom, son initiale, sa classe et son code.
+ */
+function enregistrerFiche(corps) {
+  const verrou = LockService.getScriptLock();
+  verrou.waitLock(20000);
+  try {
+    preparerOnglets_();
+    const id = verifierIdentite_(corps);
+    const existante = lireFiche_(id);
+    if (existante && !codeOk_(existante.code, id)) {
+      throw new Error('Ce prénom et cette classe ont déjà une fiche avec un autre code. Tape ton code habituel, ou demande-le à ton professeur.');
+    }
+    const autre = lireInscriptions_().filter(i => cle_(i) === id.cle)[0];
+    if (!existante && autre && !codeOk_(autre.empreinte, id)) {
+      throw new Error('Ce prénom et cette classe sont déjà utilisés avec un autre code. Tape ton code habituel, ou demande-le à ton professeur.');
+    }
+    const dispos = (corps.dispos || []).map(String).slice(0, 100);
+    ecrireFiche_(id, dispos, existante ? existante.ligne : 0);
+    SpreadsheetApp.flush();
+    return getData(corps);
+  } finally {
+    verrou.releaseLock();
+  }
+}
+
+function lireFiche_(id) {
+  const f = feuille_(ONGLET_FICHES);
+  if (!f) return null;
+  const v = f.getDataRange().getDisplayValues();
+  for (let r = 1; r < v.length; r++) {
+    if (cle_({ prenom: v[r][0], initiale: v[r][1], classe: v[r][2] }) === id.cle) {
+      return { ligne: r + 1, code: v[r][3], dispos: String(v[r][4] || '').split(';').map(x => x.trim()).filter(Boolean) };
+    }
+  }
+  return null;
+}
+
+function ecrireFiche_(id, dispos, ligne) {
+  const f = feuille_(ONGLET_FICHES);
+  const valeurs = [[id.prenom, id.initiale, id.classe, "'" + id.code, dispos.join('; '), new Date()]];
+  if (ligne) f.getRange(ligne, 1, 1, 6).setValues(valeurs);
+  else f.getRange(f.getLastRow() + 1, 1, 1, 6).setValues(valeurs);
 }
 
 /* ---------- Calendrier ---------- */
@@ -307,6 +367,12 @@ function preparerOnglets_() {
         r.getRange(r.getLastRow() + 1, 1, 1, 3).setNumberFormat('@').setValues([l]);
       }
     });
+  }
+  if (!ss.getSheetByName(ONGLET_FICHES)) {
+    const fi = ss.insertSheet(ONGLET_FICHES);
+    fi.getRange(1, 1, 1, ENTETES_FICHES.length).setValues([ENTETES_FICHES]).setFontWeight('bold');
+    fi.setFrozenRows(1);
+    fi.getRange('D:D').setNumberFormat('@');
   }
   let f = ss.getSheetByName(ONGLET_INSCRIPTIONS);
   if (!f) {
