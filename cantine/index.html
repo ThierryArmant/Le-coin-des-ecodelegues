@@ -242,6 +242,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 </style>
 </head>
 <body>
+<style id="eco-navigation-style">#eco-navigation{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:9px 12px;margin:0 0 16px;background:#f7faf8;color:#173e30;border:1px solid #ceded5;border-radius:10px;font:600 13px/1.3 system-ui,sans-serif;flex-shrink:0}#eco-navigation a{display:block;padding:9px 12px;border-radius:7px;color:#234b3b;text-decoration:none;white-space:normal}#eco-navigation a:hover,#eco-navigation a:focus-visible{background:#e1ede5;outline:2px solid #39785a;outline-offset:1px}#eco-navigation a[aria-current="page"]{background:#215e44;color:white}.main-container>#eco-navigation{margin:0;border-radius:0;border:0;border-bottom:1px solid #ceded5}@media print{#eco-navigation{display:none!important}}@media(max-width:600px){#eco-navigation{gap:3px;padding:6px;font-size:11px}#eco-navigation a{padding:8px}}</style><nav id="eco-navigation" aria-label="Changer d’espace"><a href="https://thierryarmant.github.io/Le-coin-des-ecodelegues/">Accueil</a><a href="https://thierryarmant.github.io/Le-coin-des-ecodelegues/cantine/" aria-current="page">Planning</a><a href="https://thierryarmant.github.io/E3D-cantine/">A.B.C. Cantine Bas Carbone</a><a href="https://d-fi-carbone-haut-vaucluse-84.streamlit.app/">Enquêtes</a></nav>
 <div class="wrap">
   <header class="hero">
   <div class="hero-texte">
@@ -569,6 +570,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
         m.dispos = r.fiche ? r.fiche.dispos : [];
         etat.moi = m; ecrireMoi(m); modeRetrouver(false); afficherMoi(); etat.date = null;
         appliquer(r); etat.codeRefuse = false; rendre();
+        if(window.ecoMarkSaved) window.ecoMarkSaved("#form-moi");
         toast("Fiche retrouvée. Bon retour, " + cap(m.prenom) + " !");
       }).catch(function (e) { toast(messageErreur(e), true); });
       return;
@@ -579,6 +581,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       if (cle(ancien) === cle(m) && ancien.code === m.code) {
         appel("enregistrerFiche", m).then(function (r) {
           etat.moi = m; ecrireMoi(m); etat.modif = false; afficherMoi(); etat.date = null; appliquer(r); rendre();
+          if(window.ecoMarkSaved) window.ecoMarkSaved("#form-moi");
           toast("Fiche mise à jour.");
         }).catch(function (e) { toast(messageErreur(e), true); });
         return;
@@ -592,6 +595,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     }
     appel("enregistrerFiche", m).then(function (r) {
       etat.moi = m; ecrireMoi(m); afficherMoi(); etat.date = null; appliquer(r); etat.codeRefuse = false; rendre();
+      if(window.ecoMarkSaved) window.ecoMarkSaved("#form-moi");
       toast("Fiche enregistrée. Choisis tes créneaux dans le planning.");
     }).catch(function (e) { toast(messageErreur(e), true); });
   });
@@ -976,5 +980,6 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
   setInterval(function () { if (!etat.occupe && !document.hidden && $("bravo").hidden) charger(); }, 30000);
 })();
 </script>
+<script id="eco-navigation-guard">(()=>{const initial=new WeakMap(),pending=new Set();const scope='#form-moi,#view-cuisinier,#view-saisie-dechets';const eligible=e=>e instanceof HTMLInputElement||e instanceof HTMLTextAreaElement||e instanceof HTMLSelectElement;const value=e=>(e.type==='checkbox'||e.type==='radio')?String(e.checked):e.value;document.addEventListener('focusin',event=>{const e=event.target;if(eligible(e)&&e.closest(scope)&&!pending.has(e))initial.set(e,value(e));});for(const name of ['input','change'])document.addEventListener(name,event=>{const e=event.target;if(!event.isTrusted||!eligible(e)||!e.closest(scope)||e.id==='select-etablissement')return;if(!initial.has(e))initial.set(e,(e.type==='checkbox'||e.type==='radio')?String(!e.checked):e.defaultValue||'');if(initial.get(e)===value(e))pending.delete(e);else pending.add(e);});window.ecoMarkSaved=selector=>{for(const e of pending)if(e.matches(selector)||e.closest(selector)){pending.delete(e);initial.set(e,value(e));}};window.addEventListener('beforeunload',event=>{if(Array.from(pending).some(e=>e.isConnected)){event.preventDefault();event.returnValue='';}});document.querySelectorAll('#eco-navigation a[aria-current="page"]').forEach(a=>a.addEventListener('click',e=>e.preventDefault()));})();</script>
 </body>
 </html>
