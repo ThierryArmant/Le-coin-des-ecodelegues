@@ -66,7 +66,7 @@ function doPost(e) {
     const corps = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     if (corps.action === 'getData') return getData(corps);
     if (corps.action === 'inscrire') return inscrire(corps);
-    if (corps.action === 'retirer') return retirer(corps.id, corps);
+    if (corps.action === 'retirer') return retirer(Array.isArray(corps.ids) ? corps.ids : corps.id, corps);
     if (corps.action === 'admin') return admin(corps.code);
     if (corps.action === 'adminAction') return adminAction(corps);
     if (corps.action === 'modifierFiche') return modifierFiche(corps.ancien, corps.nouveau);
@@ -182,25 +182,29 @@ function inscrire(demande) {
   }
 }
 
+// Un identifiant, ou une liste (série « chaque semaine » prise par erreur) : l'élève ne retire que ses propres lignes.
 function retirer(idInscription, identite) {
   const verrou = LockService.getScriptLock();
   verrou.waitLock(20000);
   try {
     const id = verifierIdentite_(identite);
+    const voulus = (Array.isArray(idInscription) ? idInscription : [idInscription]).map(String).slice(0, 200);
     const f = feuille_(ONGLET_INSCRIPTIONS);
     const valeurs = f.getDataRange().getDisplayValues();
+    const aSupprimer = [];
     for (let r = 1; r < valeurs.length; r++) {
-      if (String(valeurs[r][0]) === String(idInscription)) {
+      if (voulus.indexOf(String(valeurs[r][0])) >= 0) {
         const ligne = { prenom: valeurs[r][6], initiale: valeurs[r][7], classe: valeurs[r][8] };
         if (cle_(ligne) !== id.cle || !codeOk_(valeurs[r][9], id)) {
           throw new Error('Code incorrect : seule la personne inscrite peut se retirer.');
         }
-        f.deleteRow(r + 1);
-        SpreadsheetApp.flush();
-        return getData(identite);
+        aSupprimer.push(r + 1);
       }
     }
-    throw new Error('Cette inscription n\'existe plus.');
+    if (!aSupprimer.length) throw new Error('Cette inscription n\'existe plus.');
+    aSupprimer.reverse().forEach(r => f.deleteRow(r));
+    SpreadsheetApp.flush();
+    return getData(identite);
   } finally {
     verrou.releaseLock();
   }
@@ -263,6 +267,29 @@ function adminAction(corps) {
     if (corps.op === 'supprimerInscription') {
       const v = ins.getDataRange().getDisplayValues();
       for (let r = v.length - 1; r >= 1; r--) if (String(v[r][0]) === String(corps.id)) ins.deleteRow(r + 1);
+    } else if (corps.op === 'ajouterInscription') {
+      // Le professeur place un élève en direct (même inscriptions fermées, même un jour déjà commencé).
+      const config = lireReglages_();
+      if (datesOuvertes_(config).indexOf(corps.date) < 0) throw new Error('Cette date n\'est pas un jour de cantine du planning.');
+      if (config.creneaux.indexOf(corps.creneau) < 0) throw new Error('Créneau inconnu.');
+      const poste = config.postes.filter(p => p.nom === corps.poste)[0];
+      if (!poste) throw new Error('Poste inconnu.');
+      const e = corps.eleve || {};
+      // Le code de l'élève vient de sa fiche (ou de ses inscriptions) : il garde le même pour se retirer lui-même.
+      let code = String(e.code || '');
+      if (!/^\d{4}$/.test(code)) {
+        const k = cle_(e);
+        const fv = fi ? fi.getDataRange().getDisplayValues().slice(1).filter(l => cle_({ prenom: l[0], initiale: l[1], classe: l[2] }) === k)[0] : null;
+        const iv = lireInscriptions_().filter(i => cle_(i) === k && /^\d{4}$/.test(i.empreinte))[0];
+        code = fv && /^\d{4}$/.test(fv[3]) ? fv[3] : iv ? iv.empreinte : '';
+      }
+      if (!/^\d{4}$/.test(code)) throw new Error('Élève inconnu : il doit d\'abord remplir sa fiche (ou choisis-le dans la liste).');
+      const n = verifierIdentite_(Object.assign({}, e, { code: code }));
+      const liste = lireInscriptions_(), memeCase = liste.filter(i => i.date === corps.date && i.creneau === corps.creneau);
+      if (memeCase.some(i => cle_(i) === n.cle)) throw new Error(n.prenom + ' a déjà un poste sur ce créneau.');
+      if (memeCase.filter(i => i.poste === poste.nom && i.role === 'titulaire').length >= poste.places) throw new Error('Ce poste est déjà complet.');
+      ins.getRange(ins.getLastRow() + 1, 1, 1, ENTETES_INSCRIPTIONS.length).setValues([[Utilities.getUuid().slice(0, 8), new Date(), corps.date, NOMS_JOURS[jourDe_(corps.date)], corps.creneau, poste.nom,
+        "'" + n.prenom, "'" + n.initiale, "'" + n.classe, "'" + n.code, 'Titulaire']]);
     } else if (corps.op === 'supprimerEleve') {
       lignesDe(ins, 6, corps.eleve).reverse().forEach(r => ins.deleteRow(r));
       lignesDe(fi, 0, corps.eleve).reverse().forEach(r => fi.deleteRow(r));

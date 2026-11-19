@@ -177,6 +177,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
 .tg-poste:last-child { margin-bottom: 0; }
 .tg-poste small { display: block; color: var(--muted); font-size: .64rem; }
 .tg-poste .moi-tg { font-weight: 700; }
+.tg-poste .moi-retirer { font: inherit; font-weight: 700; background: #fff; border: 1px solid var(--danger); color: var(--danger); border-radius: 6px; padding: 1px 6px; cursor: pointer; }
 .tg-libre { color: var(--muted); font-style: italic; }
 .table-global .court { display: none; }
 /* Tableau global : version compacte jusqu'à 900 px de large, pour qu'il tienne toujours en entier */
@@ -362,7 +363,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     if (nom === "inscrire") return poster(Object.assign({ action: "inscrire" }, a));
     if (nom === "modifierFiche") return poster({ action: "modifierFiche", ancien: a, nouveau: b });
     if (nom === "enregistrerFiche") return poster(Object.assign({ action: "enregistrerFiche" }, a));
-    return poster(Object.assign({ action: "retirer", id: a }, b));
+    return poster(Object.assign({ action: "retirer" }, Array.isArray(a) ? { ids: a } : { id: a }, b));
   }
 
   /* ---- Dates ---- */
@@ -447,10 +448,14 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
         var r = donnees(nouveau); r.modifiees = nb; return Promise.resolve(r);
       },
       retirer: function (id, ident) {
-        var i = liste.findIndex(function (x) { return x.id === id; });
-        if (i < 0) return Promise.reject(new Error("Cette inscription n'existe plus."));
-        if (liste[i].code !== ident.code || cle(liste[i]) !== cle(ident)) return Promise.reject(new Error("Code incorrect : seule la personne inscrite peut se retirer."));
-        liste.splice(i, 1); return Promise.resolve(donnees(ident));
+        var ids = Array.isArray(id) ? id : [id];
+        for (var n = 0; n < ids.length; n++) {
+          var i = liste.findIndex(function (x) { return x.id === ids[n]; });
+          if (i < 0) continue;
+          if (liste[i].code !== ident.code || cle(liste[i]) !== cle(ident)) return Promise.reject(new Error("Code incorrect : seule la personne inscrite peut se retirer."));
+          liste.splice(i, 1);
+        }
+        return Promise.resolve(donnees(ident));
       }
     };
   })();
@@ -843,7 +848,14 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
             var nom = g.mien && etat.moi ? cap(etat.moi.prenom) + " " + etat.moi.initiale.toUpperCase() + ". (toi)"
                     : g.prenom ? cap(g.prenom) + " " + g.initiale + ". " + g.classe : "pris";
             if (k) b.appendChild(document.createTextNode(", "));
-            b.appendChild(elt("span", g.mien ? "moi-tg" : null, nom));
+            if (g.mien && g.id) {
+              // Sa propre case : un toucher pour se retirer (erreur de créneau, empêchement).
+              var moiBtn = elt("button", "moi-tg moi-retirer", nom + " ×"); moiBtn.type = "button";
+              moiBtn.title = "Me retirer de ce créneau"; moiBtn.setAttribute("aria-label", "Me retirer : " + dateLongue(d) + ", " + cr + ", " + p.nom);
+              moiBtn.disabled = etat.occupe;
+              moiBtn.addEventListener("click", function () { if (confirm("Te retirer du " + dateLongue(g.date) + ", " + g.creneau.replace("-", " – ") + " ?")) retirer(g); });
+              b.appendChild(moiBtn);
+            } else b.appendChild(elt("span", g.mien ? "moi-tg" : null, nom));
           });
           // Place libre et pas déjà inscrit sur ce créneau ce jour-là : on peut se rajouter d'un toucher
           var dejaLa = etat.inscriptions.some(function (i) { return i.date === d && i.creneau === cr && i.mien; });
@@ -915,6 +927,17 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
       var x = elt("button", "retirer", "Retirer"); x.type = "button";
       x.addEventListener("click", function () { retirer(i); });
       li.appendChild(x);
+      // Inscription « chaque semaine » prise par erreur : on retire toute la série d'un coup (à partir de cette date).
+      var serie = miens.filter(function (j) { return j.date >= i.date && jourDe(j.date) === jourDe(i.date) && j.creneau === i.creneau && j.poste === i.poste; });
+      var premiereDeSerie = !miens.some(function (j) { return j.date < i.date && jourDe(j.date) === jourDe(i.date) && j.creneau === i.creneau && j.poste === i.poste; });
+      if (serie.length > 1 && premiereDeSerie) {
+        var xs = elt("button", "retirer", "Retirer les " + serie.length); xs.type = "button";
+        xs.title = "Retirer tous les " + NOMS_JOURS[jourDe(i.date)].toLowerCase() + "s " + i.creneau + " à ce poste";
+        xs.addEventListener("click", function () {
+          if (confirm("Retirer tes " + serie.length + " créneaux du " + NOMS_JOURS[jourDe(i.date)].toLowerCase() + " " + i.creneau.replace("-", " – ") + " (" + i.poste + ") ?")) retirerSerie(serie);
+        });
+        li.appendChild(xs);
+      }
       ul.appendChild(li);
     });
     mes.appendChild(ul);
@@ -951,6 +974,15 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); ou
     appel("retirer", g.id, etat.moi).then(function (r) {
       appliquer(r);
       toast("Retiré : " + dateLongue(g.date) + ", " + g.creneau.replace("-", " – ") + ".");
+    }).catch(function (e) { toast(messageErreur(e), true); })
+      .then(function () { etat.occupe = false; rendre(); });
+  }
+  function retirerSerie(liste) {
+    if (!exiger() || etat.occupe) return;
+    etat.occupe = true; toastAttente("Retrait en cours…");
+    appel("retirer", liste.map(function (g) { return g.id; }), etat.moi).then(function (r) {
+      appliquer(r);
+      toast(liste.length + " créneaux retirés.");
     }).catch(function (e) { toast(messageErreur(e), true); })
       .then(function () { etat.occupe = false; rendre(); });
   }

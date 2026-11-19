@@ -112,6 +112,9 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
 .legende { display: flex; gap: 14px; flex-wrap: wrap; font-size: .82rem; color: var(--muted); }
 .legende span { display: inline-flex; gap: 6px; align-items: center; }
 .dot { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+.ajout { font: inherit; font-size: .75rem; margin: 2px 4px 0 0; padding: 1px 7px; border: 1px dashed #1b4332; border-radius: 6px; background: #fff; color: #1b4332; cursor: pointer; }
+.ajout-zone { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-top: 2px; }
+.ajout-choix { font: inherit; font-size: .75rem; max-width: 150px; }
 </style>
 </head>
 <body>
@@ -341,7 +344,15 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
             });
             l.appendChild(x); b.appendChild(l);
           });
-          if (tit.length < p.places) { complet = false; b.appendChild(elt("span", tit.length ? "trou demi" : "trou", (p.places - tit.length) + " à pourvoir")); }
+          if (tit.length < p.places) {
+            complet = false; b.appendChild(elt("span", tit.length ? "trou demi" : "trou", (p.places - tit.length) + " à pourvoir"));
+            // Modification en direct : le professeur place un élève sur la place libre.
+            var aj = elt("button", "ajout", "+ Ajouter"); aj.type = "button"; aj.title = "Placer un élève sur ce poste";
+            (function (date, cr, poste, bloc, bouton) {
+              bouton.addEventListener("click", function () { choisirEleve(date, cr, poste, bloc, bouton); });
+            })(x, cr, p.nom, b, aj);
+            b.appendChild(aj);
+          }
           rem.forEach(function (i) { b.appendChild(elt("span", "rempl", "Remplaçant : " + nomEleve(i))); });
           cell.appendChild(b);
         });
@@ -351,6 +362,33 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
       tb.appendChild(ligne);
     });
     g.appendChild(tb);
+  }
+
+  // Élèves connus : fiches remplies et élèves déjà inscrits (avec leur code, pour qu'ils puissent ensuite se retirer eux-mêmes).
+  function elevesConnus() {
+    var vus = {}, out = [];
+    (etat.d.fiches || []).concat(etat.d.inscriptions || []).forEach(function (e) {
+      var k = cleE(e); if (!e.prenom || vus[k]) return; vus[k] = 1;
+      out.push({ prenom: e.prenom, initiale: e.initiale, classe: e.classe, code: e.code || "" });
+    });
+    return out.sort(function (a, b) { return (a.classe + a.prenom).localeCompare(b.classe + b.prenom, "fr"); });
+  }
+  function choisirEleve(date, cr, poste, bloc, bouton) {
+    var liste = elevesConnus().filter(function (e) { return !surCase(date, cr).some(function (i) { return cleE(i) === cleE(e); }); });
+    if (!liste.length) { avis("Aucun élève disponible : tous ont déjà un poste sur ce créneau, ou aucune fiche n'est remplie.", true); return; }
+    var sel = elt("select", "ajout-choix"); sel.appendChild(elt("option", null, "Choisir un élève…")); sel.firstChild.value = "";
+    liste.forEach(function (e, k) { var o = elt("option", null, nomEleve(e)); o.value = String(k); sel.appendChild(o); });
+    var ok = elt("button", "ajout", "Placer"); ok.type = "button";
+    var annul = elt("button", "ajout", "Annuler"); annul.type = "button";
+    var zone = elt("span", "ajout-zone"); zone.appendChild(sel); zone.appendChild(ok); zone.appendChild(annul);
+    bouton.replaceWith(zone); sel.focus();
+    annul.addEventListener("click", function () { rendre(); });
+    ok.addEventListener("click", function () {
+      if (sel.value === "") { sel.focus(); return; }
+      var e = liste[Number(sel.value)];
+      ok.disabled = true; ok.textContent = "…";
+      action("ajouterInscription", { date: date, creneau: cr, poste: poste, eleve: e }, nomEleve(e) + " placé(e) : " + jourCourt(date) + ", " + cr + ".");
+    });
   }
 
   function cleE(o) { return [o.prenom, o.initiale, o.classe].map(function (x) { return String(x || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, ""); }).join("|"); }
