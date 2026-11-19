@@ -115,6 +115,18 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
 .ajout { font: inherit; font-size: .75rem; margin: 2px 4px 0 0; padding: 1px 7px; border: 1px dashed #1b4332; border-radius: 6px; background: #fff; color: #1b4332; cursor: pointer; }
 .ajout-zone { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-top: 2px; }
 .ajout-choix { font: inherit; font-size: .8rem; width: 100%; max-width: 180px; padding: 3px 5px; }
+.parcours-ligne { cursor: pointer; }
+.parcours-ligne:hover td, .parcours-ligne:focus td { background: #f1f5f2; }
+.parcours-dates { margin: 4px 0 8px 12px; padding: 0; columns: 2 260px; font-size: .85rem; }
+.parcours-dates li { margin: 2px 0; }
+.parcours-dates li.futur { color: #64748b; }
+#parcours-cherche { font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; }
+@media print {
+  body.impression-parcours * { visibility: hidden; }
+  body.impression-parcours #parcours-carte, body.impression-parcours #parcours-carte * { visibility: visible; }
+  body.impression-parcours #parcours-carte { position: absolute; left: 0; top: 0; width: 100%; border: 0; }
+  body.impression-parcours #parcours-carte .filtres { display: none; }
+}
 </style>
 </head>
 <body>
@@ -178,6 +190,20 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
         <h2>Élèves</h2>
         <p class="aide">Toutes les fiches, avec ou sans inscription. « Modifier » corrige le nom, la classe ou le code (les inscriptions suivent) ; « Supprimer » efface la fiche et ses inscriptions. Les codes servent à aider un élève qui a oublié le sien : ne les affiche pas devant la classe.</p>
         <div class="defile"><table class="eleves" id="eleves"></table></div>
+      </section>
+
+      <section class="carte" id="parcours-carte">
+        <div class="tete">
+          <h2>Parcours des élèves</h2>
+          <div class="filtres">
+            <input id="parcours-cherche" type="search" placeholder="Prénom ou classe…" aria-label="Filtrer le parcours">
+            <button class="btn btn-lien" type="button" id="parcours-csv">Exporter (tableur)</button>
+            <button class="btn btn-lien" type="button" id="parcours-imprimer">Imprimer</button>
+          </div>
+        </div>
+        <p class="aide">Tous les créneaux de chaque élève depuis le début du planning. « Déjà assurés » compte les créneaux passés où l'élève était inscrit (la présence réelle n'est pas pointée). Touche une ligne pour voir le détail date par date.</p>
+        <div id="parcours-resume" class="aide"></div>
+        <div class="defile"><table class="eleves" id="parcours"></table></div>
       </section>
     </div>
   </div>
@@ -277,6 +303,7 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
     rendreManques();
     rendreSemaine();
     rendreEleves();
+    rendreParcours();
   }
 
   function rendreManques() {
@@ -450,6 +477,70 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
     t.appendChild(tb);
   }
 
+  // ---- Parcours des élèves : tout l'historique depuis le début ----
+  function parcoursEleves() {
+    var d = etat.d, par = {};
+    d.inscriptions.forEach(function (i) {
+      var k = cleE(i);
+      var o = par[k] || (par[k] = { prenom: i.prenom, initiale: i.initiale, classe: i.classe, faits: [], avenir: [], postes: {} });
+      (i.date < d.aujourdhui ? o.faits : o.avenir).push(i);
+      o.postes[i.poste] = (o.postes[i.poste] || 0) + 1;
+    });
+    var tri = function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : d.config.creneaux.indexOf(a.creneau) - d.config.creneaux.indexOf(b.creneau); };
+    return Object.keys(par).map(function (k) { var o = par[k]; o.faits.sort(tri); o.avenir.sort(tri); return o; })
+      .sort(function (a, b) { return (b.faits.length - a.faits.length) || a.classe.localeCompare(b.classe) || a.prenom.localeCompare(b.prenom); });
+  }
+  function rendreParcours() {
+    var t = $("parcours"); t.textContent = "";
+    var filtre = ($("parcours-cherche").value || "").trim().toLowerCase();
+    var tous = parcoursEleves();
+    var liste = tous.filter(function (o) { return !filtre || (o.prenom + " " + o.classe).toLowerCase().indexOf(filtre) >= 0; });
+    var totFaits = tous.reduce(function (a, o) { return a + o.faits.length; }, 0), totAvenir = tous.reduce(function (a, o) { return a + o.avenir.length; }, 0);
+    $("parcours-resume").textContent = tous.length + " élèves engagés depuis le début · " + totFaits + " créneaux déjà assurés · " + totAvenir + " à venir.";
+    if (!liste.length) { t.appendChild(elt("caption", "vide", filtre ? "Aucun élève ne correspond." : "Aucune inscription pour l'instant.")); return; }
+    var h = elt("tr"); ["Élève", "Classe", "Déjà assurés", "À venir", "Premier", "Dernier assuré", "Postes"].forEach(function (x) { h.appendChild(elt("th", null, x)); });
+    var th = elt("thead"); th.appendChild(h); t.appendChild(th);
+    var tb = elt("tbody");
+    liste.forEach(function (o) {
+      var tr = elt("tr", "parcours-ligne"); tr.tabIndex = 0; tr.title = "Voir le détail";
+      var premier = (o.faits[0] || o.avenir[0] || {}).date, dernier = (o.faits[o.faits.length - 1] || {}).date;
+      tr.appendChild(elt("td", null, o.prenom + " " + o.initiale + "."));
+      tr.appendChild(elt("td", null, o.classe));
+      tr.appendChild(elt("td", "n", String(o.faits.length)));
+      tr.appendChild(elt("td", "n", String(o.avenir.length)));
+      tr.appendChild(elt("td", null, premier ? jourCourt(premier) : "—"));
+      tr.appendChild(elt("td", null, dernier ? jourCourt(dernier) : "—"));
+      tr.appendChild(elt("td", "dispos-txt", Object.keys(o.postes).map(function (p) { return p + " ×" + o.postes[p]; }).join(" · ")));
+      var detail = elt("tr", "parcours-detail"); detail.hidden = true;
+      var td = elt("td"); td.colSpan = 7;
+      var ul = elt("ul", "parcours-dates");
+      o.faits.concat(o.avenir).forEach(function (i) {
+        var li = elt("li", i.date < etat.d.aujourdhui ? "passe" : "futur");
+        li.textContent = jourCourt(i.date) + " · " + i.creneau.replace("-", " – ") + " · " + i.poste + (i.role === "remplacant" ? " (remplaçant)" : "") + (i.date < etat.d.aujourdhui ? "" : " · à venir");
+        ul.appendChild(li);
+      });
+      td.appendChild(ul); detail.appendChild(td);
+      var basculer = function () { detail.hidden = !detail.hidden; };
+      tr.addEventListener("click", basculer);
+      tr.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); basculer(); } });
+      tb.appendChild(tr); tb.appendChild(detail);
+    });
+    t.appendChild(tb);
+  }
+  function exporterParcours() {
+    var lignes = [["Prénom", "Initiale", "Classe", "Date", "Jour", "Créneau", "Poste", "Rôle", "Statut"]];
+    parcoursEleves().forEach(function (o) {
+      o.faits.concat(o.avenir).forEach(function (i) {
+        lignes.push([o.prenom, o.initiale, o.classe, i.date, jourCourt(i.date).split(" ")[0], i.creneau, i.poste, i.role === "remplacant" ? "Remplaçant" : "Titulaire", i.date < etat.d.aujourdhui ? "Assuré" : "À venir"]);
+      });
+    });
+    var csv = "\ufeff" + lignes.map(function (l) { return l.map(function (x) { return '"' + String(x).replace(/"/g, '""') + '"'; }).join(";"); }).join("\r\n");
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = "parcours-eleves-" + etat.d.aujourdhui + ".csv";
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
   function editer(tr, o) {
     tr.textContent = ""; tr.className = "edit";
     function champ(val, ph, max) { var td = elt("td"), i = elt("input"); i.value = val; i.placeholder = ph; i.maxLength = max; td.appendChild(i); tr.appendChild(td); return i; }
@@ -478,6 +569,13 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
 
   $("form-code").addEventListener("submit", function (e) { e.preventDefault(); charger($("code").value.trim()); });
   $("actualiser").addEventListener("click", function () { charger(lireCode()); });
+  $("parcours-cherche").addEventListener("input", function () { if (etat.d) rendreParcours(); });
+  $("parcours-csv").addEventListener("click", function () { if (etat.d) exporterParcours(); });
+  $("parcours-imprimer").addEventListener("click", function () {
+    document.querySelectorAll("#parcours .parcours-detail").forEach(function (r) { r.hidden = false; });
+    document.body.classList.add("impression-parcours"); window.print();
+    setTimeout(function () { document.body.classList.remove("impression-parcours"); }, 500);
+  });
   $("deconnexion").addEventListener("click", function () { ecrireCode(""); location.reload(); });
   $("horizon").addEventListener("change", rendreManques);
   $("sem-prec").addEventListener("click", function () { if (etat.semaine > 0) { etat.semaine--; rendreSemaine(); } });
