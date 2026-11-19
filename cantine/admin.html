@@ -114,7 +114,7 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
 .dot { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
 .ajout { font: inherit; font-size: .75rem; margin: 2px 4px 0 0; padding: 1px 7px; border: 1px dashed #1b4332; border-radius: 6px; background: #fff; color: #1b4332; cursor: pointer; }
 .ajout-zone { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-top: 2px; }
-.ajout-choix { font: inherit; font-size: .75rem; max-width: 150px; }
+.ajout-choix { font: inherit; font-size: .8rem; width: 100%; max-width: 180px; padding: 3px 5px; }
 </style>
 </head>
 <body>
@@ -376,19 +376,31 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
   function choisirEleve(date, cr, poste, bloc, bouton) {
     var liste = elevesConnus().filter(function (e) { return !surCase(date, cr).some(function (i) { return cleE(i) === cleE(e); }); });
     if (!liste.length) { avis("Aucun élève disponible : tous ont déjà un poste sur ce créneau, ou aucune fiche n'est remplie.", true); return; }
-    var sel = elt("select", "ajout-choix"); sel.appendChild(elt("option", null, "Choisir un élève…")); sel.firstChild.value = "";
-    liste.forEach(function (e, k) { var o = elt("option", null, nomEleve(e)); o.value = String(k); sel.appendChild(o); });
+    // Saisie rapide : on tape les premières lettres du prénom (ou la classe), on choisit, Entrée place l'élève.
+    var listeId = "eleves-" + Math.random().toString(36).slice(2, 8);
+    var champ = elt("input", "ajout-choix"); champ.type = "text"; champ.placeholder = "Prénom…"; champ.setAttribute("list", listeId); champ.autocomplete = "off";
+    var dl = elt("datalist"); dl.id = listeId;
+    liste.forEach(function (e) { var o = elt("option"); o.value = nomEleve(e); dl.appendChild(o); });
     var ok = elt("button", "ajout", "Placer"); ok.type = "button";
     var annul = elt("button", "ajout", "Annuler"); annul.type = "button";
-    var zone = elt("span", "ajout-zone"); zone.appendChild(sel); zone.appendChild(ok); zone.appendChild(annul);
-    bouton.replaceWith(zone); sel.focus();
-    annul.addEventListener("click", function () { rendre(); });
-    ok.addEventListener("click", function () {
-      if (sel.value === "") { sel.focus(); return; }
-      var e = liste[Number(sel.value)];
+    var zone = elt("span", "ajout-zone"); zone.appendChild(champ); zone.appendChild(dl); zone.appendChild(ok); zone.appendChild(annul);
+    bouton.replaceWith(zone); champ.focus();
+    var trouver = function () {
+      var v = champ.value.trim().toLowerCase(); if (!v) return null;
+      var exact = liste.filter(function (e) { return nomEleve(e).toLowerCase() === v; })[0];
+      if (exact) return exact;
+      var debut = liste.filter(function (e) { return nomEleve(e).toLowerCase().indexOf(v) === 0; });
+      return debut.length === 1 ? debut[0] : null;
+    };
+    var placer = function () {
+      var e = trouver();
+      if (!e) { avis("Choisis un élève dans la liste (tape le début de son prénom).", true); champ.focus(); return; }
       ok.disabled = true; ok.textContent = "…";
       action("ajouterInscription", { date: date, creneau: cr, poste: poste, eleve: e }, nomEleve(e) + " placé(e) : " + jourCourt(date) + ", " + cr + ".");
-    });
+    };
+    annul.addEventListener("click", function () { rendre(); });
+    ok.addEventListener("click", placer);
+    champ.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); placer(); } if (ev.key === "Escape") rendre(); });
   }
 
   function cleE(o) { return [o.prenom, o.initiale, o.classe].map(function (x) { return String(x || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, ""); }).join("|"); }
