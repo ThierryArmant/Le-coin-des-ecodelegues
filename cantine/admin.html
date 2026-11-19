@@ -201,7 +201,7 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
             <button class="btn btn-lien" type="button" id="parcours-imprimer">Imprimer</button>
           </div>
         </div>
-        <p class="aide">Tous les créneaux de chaque élève depuis le début du planning. « Déjà assurés » compte les créneaux passés où l'élève était inscrit (la présence réelle n'est pas pointée). Touche une ligne pour voir le détail date par date.</p>
+        <p class="aide">Tous les créneaux de chaque élève depuis le début du planning. « Services faits » compte les créneaux passés où l'élève était inscrit (la présence réelle n'est pas pointée). Touche une ligne pour voir le détail date par date.</p>
         <div id="parcours-resume" class="aide"></div>
         <div class="defile"><table class="eleves" id="parcours"></table></div>
       </section>
@@ -496,9 +496,9 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
     var tous = parcoursEleves();
     var liste = tous.filter(function (o) { return !filtre || (o.prenom + " " + o.classe).toLowerCase().indexOf(filtre) >= 0; });
     var totFaits = tous.reduce(function (a, o) { return a + o.faits.length; }, 0), totAvenir = tous.reduce(function (a, o) { return a + o.avenir.length; }, 0);
-    $("parcours-resume").textContent = tous.length + " élèves engagés depuis le début · " + totFaits + " créneaux déjà assurés · " + totAvenir + " à venir.";
+    $("parcours-resume").textContent = tous.length + " élèves engagés depuis le début · " + totFaits + " services faits · " + totAvenir + " à venir.";
     if (!liste.length) { t.appendChild(elt("caption", "vide", filtre ? "Aucun élève ne correspond." : "Aucune inscription pour l'instant.")); return; }
-    var h = elt("tr"); ["Élève", "Classe", "Déjà assurés", "À venir", "Premier", "Dernier assuré", "Postes"].forEach(function (x) { h.appendChild(elt("th", null, x)); });
+    var h = elt("tr"); ["Élève", "Classe", "Services faits", "À venir", "Premier service", "Dernier service fait", "Postes"].forEach(function (x) { h.appendChild(elt("th", null, x)); });
     var th = elt("thead"); th.appendChild(h); t.appendChild(th);
     var tb = elt("tbody");
     liste.forEach(function (o) {
@@ -531,7 +531,7 @@ th.h { font-family: var(--font-data); font-weight: 700; font-variant-numeric: ta
     var lignes = [["Prénom", "Initiale", "Classe", "Date", "Jour", "Créneau", "Poste", "Rôle", "Statut"]];
     parcoursEleves().forEach(function (o) {
       o.faits.concat(o.avenir).forEach(function (i) {
-        lignes.push([o.prenom, o.initiale, o.classe, i.date, jourCourt(i.date).split(" ")[0], i.creneau, i.poste, i.role === "remplacant" ? "Remplaçant" : "Titulaire", i.date < etat.d.aujourdhui ? "Assuré" : "À venir"]);
+        lignes.push([o.prenom, o.initiale, o.classe, i.date, jourCourt(i.date).split(" ")[0], i.creneau, i.poste, i.role === "remplacant" ? "Remplaçant" : "Titulaire", i.date < etat.d.aujourdhui ? "Fait" : "À venir"]);
       });
     });
     var csv = "\ufeff" + lignes.map(function (l) { return l.map(function (x) { return '"' + String(x).replace(/"/g, '""') + '"'; }).join(";"); }).join("\r\n");
